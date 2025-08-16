@@ -35,9 +35,9 @@ import {
 } from "lucide-react";
 
 export default function Inventory() {
-  const [selectedProject, setSelectedProject] = useState<string>("");
-  const [selectedTower, setSelectedTower] = useState<string>("");
-  const [selectedFloor, setSelectedFloor] = useState<string>("");
+  const [selectedProject, setSelectedProject] = useState<string>("all");
+  const [selectedTower, setSelectedTower] = useState<string>("all");
+  const [selectedFloor, setSelectedFloor] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [showUnitForm, setShowUnitForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -123,9 +123,9 @@ export default function Inventory() {
 
     const matchesStatus = filterStatus === "all" || unit.status === filterStatus;
 
-    const matchesProject = !selectedProject || unit.projectId === selectedProject;
-    const matchesTower = !selectedTower || unit.tower === selectedTower;
-    const matchesFloor = !selectedFloor || unit.floor.toString() === selectedFloor;
+    const matchesProject = selectedProject === "all" || unit.projectId === selectedProject;
+    const matchesTower = selectedTower === "all" || unit.tower === selectedTower;
+    const matchesFloor = selectedFloor === "all" || unit.floor.toString() === selectedFloor;
 
     return matchesSearch && matchesStatus && matchesProject && matchesTower && matchesFloor;
   }) || [];
@@ -272,7 +272,7 @@ export default function Inventory() {
                   <SelectValue placeholder="Select Project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Projects</SelectItem>
+                  <SelectItem value="all">All Projects</SelectItem>
                   {projects?.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
@@ -288,7 +288,7 @@ export default function Inventory() {
                   <SelectValue placeholder="Select Tower" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Towers</SelectItem>
+                  <SelectItem value="all">All Towers</SelectItem>
                   {towers?.map((tower) => (
                     <SelectItem key={tower} value={tower}>
                       Tower {tower}
@@ -304,7 +304,7 @@ export default function Inventory() {
                   <SelectValue placeholder="Select Floor" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Floors</SelectItem>
+                  <SelectItem value="all">All Floors</SelectItem>
                   {floors?.map((floor) => (
                     <SelectItem key={floor} value={floor.toString()}>
                       Floor {floor}
