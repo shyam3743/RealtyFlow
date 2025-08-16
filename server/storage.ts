@@ -49,6 +49,7 @@ export interface IStorage {
   getLead(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead>;
+  deleteLead(id: string): Promise<void>;
   getLeadsByStatus(status: string): Promise<Lead[]>;
   
   // Unit operations
@@ -175,6 +176,10 @@ export class DatabaseStorage implements IStorage {
     return updatedLead;
   }
 
+  async deleteLead(id: string): Promise<void> {
+    await db.delete(leads).where(eq(leads.id, id));
+  }
+
   async getLeadsByStatus(status: string): Promise<Lead[]> {
     return await db.select().from(leads).where(eq(leads.status, status as any));
   }
@@ -216,26 +221,27 @@ export class DatabaseStorage implements IStorage {
 
   // Tower operations
   async getTowers(projectId: string): Promise<string[]> {
-    const result = await db
-      .selectDistinct({ tower: units.tower })
-      .from(units)
-      .where(eq(units.projectId, projectId));
-    return result.map(r => r.tower).filter(Boolean);
+    const result = await db.select({ name: towers.name }).from(towers)
+      .where(eq(towers.projectId, projectId));
+    return result.map(r => r.name);
   }
 
-  async getFloors(tower: string): Promise<number[]> {
-    const result = await db
-      .selectDistinct({ floor: units.floor })
-      .from(units)
-      .where(eq(units.tower, tower))
+  async getFloors(towerName: string): Promise<number[]> {
+    // Get tower ID from name first
+    const tower = await db.select().from(towers).where(eq(towers.name, towerName)).limit(1);
+    if (!tower.length) return [];
+    
+    const result = await db.select({ floor: units.floor }).from(units)
+      .where(eq(units.towerId, tower[0].id))
+      .groupBy(units.floor)
       .orderBy(units.floor);
-    return result.map(r => r.floor).filter(Boolean);
+    return result.map(r => r.floor);
   }
 
   async blockUnit(unitId: string): Promise<Unit> {
     const [updatedUnit] = await db
       .update(units)
-      .set({ status: 'blocked', updatedAt: new Date() })
+      .set({ status: 'blocked', blockedAt: new Date() })
       .where(eq(units.id, unitId))
       .returning();
     return updatedUnit;
@@ -244,7 +250,7 @@ export class DatabaseStorage implements IStorage {
   async unblockUnit(unitId: string): Promise<Unit> {
     const [updatedUnit] = await db
       .update(units)
-      .set({ status: 'available', updatedAt: new Date() })
+      .set({ status: 'available', blockedAt: null })
       .where(eq(units.id, unitId))
       .returning();
     return updatedUnit;

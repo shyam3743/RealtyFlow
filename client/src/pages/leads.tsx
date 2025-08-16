@@ -59,10 +59,9 @@ const leadFormSchema = z.object({
   source: z.string().min(1, "Source is required"),
   status: z.string().min(1, "Status is required"),
   budget: z.string().optional(),
-  requirements: z.string().optional(),
+  preferences: z.string().optional(),
   notes: z.string().optional(),
   assignedTo: z.string().optional(),
-  priority: z.string().min(1, "Priority is required"),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
@@ -87,10 +86,9 @@ export default function Leads() {
       source: "",
       status: "new",
       budget: "",
-      requirements: "",
+      preferences: "",
       notes: "",
       assignedTo: "",
-      priority: "medium",
     },
   });
 
@@ -117,10 +115,9 @@ export default function Leads() {
         source: editingLead.source || "",
         status: editingLead.status || "new",
         budget: editingLead.budget || "",
-        requirements: editingLead.requirements || "",
+        preferences: editingLead.preferences || "",
         notes: editingLead.notes || "",
         assignedTo: editingLead.assignedTo || "",
-        priority: editingLead.priority || "medium",
       });
     }
   }, [editingLead, form]);
@@ -290,12 +287,26 @@ export default function Leads() {
   const stats = getLeadStats();
 
   const leadSources = [
-    "99acres", "MagicBricks", "Housing.com", "Google Ads", "Facebook", 
-    "Walk-in", "Referral", "Broker", "Website", "Other"
+    { value: "99acres", label: "99acres" },
+    { value: "magicbricks", label: "MagicBricks" },
+    { value: "website", label: "Website" },
+    { value: "walk_in", label: "Walk-in" },
+    { value: "broker", label: "Broker" },
+    { value: "google_ads", label: "Google Ads" },
+    { value: "meta_ads", label: "Facebook/Meta Ads" },
+    { value: "referral", label: "Referral" }
   ];
 
   const leadStatuses = [
-    "new", "contacted", "qualified", "site_visit", "negotiation", "booking", "sale", "lost"
+    { value: "new", label: "New" },
+    { value: "contacted", label: "Contacted" },
+    { value: "site_visit", label: "Site Visit" },
+    { value: "negotiation", label: "Negotiation" },
+    { value: "booking", label: "Booking" },
+    { value: "sale", label: "Sale" },
+    { value: "post_sales", label: "Post Sales" },
+    { value: "lost", label: "Lost" },
+    { value: "inactive", label: "Inactive" }
   ];
 
   const salesTeam = [
@@ -386,8 +397,8 @@ export default function Leads() {
                             </FormControl>
                             <SelectContent>
                               {leadSources.map((source) => (
-                                <SelectItem key={source} value={source.toLowerCase().replace(/ /g, '_')}>
-                                  {source}
+                                <SelectItem key={source.value} value={source.value}>
+                                  {source.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -411,8 +422,8 @@ export default function Leads() {
                             </FormControl>
                             <SelectContent>
                               {leadStatuses.map((status) => (
-                                <SelectItem key={status} value={status}>
-                                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                                <SelectItem key={status.value} value={status.value}>
+                                  {status.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -424,20 +435,22 @@ export default function Leads() {
 
                     <FormField
                       control={form.control}
-                      name="priority"
+                      name="assignedTo"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Priority *</FormLabel>
+                          <FormLabel>Assigned To</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select priority" />
+                                <SelectValue placeholder="Select team member" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="high">High Priority</SelectItem>
-                              <SelectItem value="medium">Medium Priority</SelectItem>
-                              <SelectItem value="low">Low Priority</SelectItem>
+                              {salesTeam.map((member) => (
+                                <SelectItem key={member} value={member}>
+                                  {member}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -487,13 +500,13 @@ export default function Leads() {
 
                   <FormField
                     control={form.control}
-                    name="requirements"
+                    name="preferences"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Requirements</FormLabel>
+                        <FormLabel>Preferences</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Enter customer requirements (e.g., 2BHK, specific location, amenities)"
+                            placeholder="Enter customer preferences (e.g., 2BHK, specific location, amenities)"
                             {...field} 
                           />
                         </FormControl>
@@ -630,8 +643,8 @@ export default function Leads() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   {leadStatuses.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -646,8 +659,8 @@ export default function Leads() {
                 <SelectContent>
                   <SelectItem value="all">All Sources</SelectItem>
                   {leadSources.map((source) => (
-                    <SelectItem key={source} value={source.toLowerCase().replace(/ /g, '_')}>
-                      {source}
+                    <SelectItem key={source.value} value={source.value}>
+                      {source.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -743,7 +756,7 @@ export default function Leads() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">
-                        {lead.source?.replace('_', ' ').toUpperCase() || "Unknown"}
+                        {leadSources.find(s => s.value === lead.source)?.label || "Unknown"}
                       </Badge>
                     </TableCell>
                     <TableCell>

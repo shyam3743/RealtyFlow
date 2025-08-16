@@ -218,6 +218,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/leads/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteLead(req.params.id);
+      res.json({ message: "Lead deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting lead:", error);
+      res.status(500).json({ message: "Failed to delete lead" });
+    }
+  });
+
+  app.delete('/api/leads/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteLead(req.params.id);
+      res.json({ message: "Lead deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting lead:", error);
+      res.status(500).json({ message: "Failed to delete lead" });
+    }
+  });
+
   app.get('/api/leads/status/:status', isAuthenticated, async (req, res) => {
     try {
       const leads = await storage.getLeadsByStatus(req.params.status);
