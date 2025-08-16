@@ -1,24 +1,50 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Mail, MessageCircle, Phone, Send, Calendar, Users } from "lucide-react";
+import { 
+  Plus, 
+  Search, 
+  Send, 
+  MessageSquare, 
+  Mail,
+  Phone,
+  Zap,
+  Calendar,
+  Users,
+  Target,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  AlertCircle
+} from "lucide-react";
 
 export default function Communication() {
   const [showCampaignForm, setShowCampaignForm] = useState(false);
-  const [selectedCampaignType, setSelectedCampaignType] = useState<"email" | "whatsapp" | "sms">("email");
+  const [showMessageForm, setShowMessageForm] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
 
-  // Redirect to home if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
@@ -33,20 +59,30 @@ export default function Communication() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: communications, isLoading: communicationsLoading } = useQuery({
+  const { data: communications, isLoading: communicationsLoading } = useQuery<any[]>({
     queryKey: ["/api/communications"],
     retry: false,
   });
 
-  const sendCampaignMutation = useMutation({
+  const { data: campaigns, isLoading: campaignsLoading } = useQuery<any[]>({
+    queryKey: ["/api/campaigns"],
+    retry: false,
+  });
+
+  const { data: leads } = useQuery<any[]>({
+    queryKey: ["/api/leads"],
+    retry: false,
+  });
+
+  const createCampaignMutation = useMutation({
     mutationFn: async (campaignData: any) => {
-      await apiRequest("POST", "/api/communications", campaignData);
+      await apiRequest("POST", "/api/campaigns", campaignData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
       toast({
         title: "Success",
-        description: "Campaign sent successfully",
+        description: "Campaign created successfully",
       });
       setShowCampaignForm(false);
     },
@@ -64,131 +100,187 @@ export default function Communication() {
       }
       toast({
         title: "Error",
-        description: "Failed to send campaign",
+        description: "Failed to create campaign",
         variant: "destructive",
       });
     },
   });
 
-  const handleSendCampaign = (type: "email" | "whatsapp" | "sms", template: string) => {
-    setSelectedCampaignType(type);
-    // In a real implementation, this would open a form with the template
-    toast({
-      title: "Campaign Started",
-      description: `${template} campaign is being sent to selected recipients`,
-    });
-  };
+  const sendMessageMutation = useMutation({
+    mutationFn: async (messageData: any) => {
+      await apiRequest("POST", "/api/communications", messageData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/communications"] });
+      toast({
+        title: "Success",
+        description: "Message sent successfully",
+      });
+      setShowMessageForm(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    },
+  });
 
-  const campaignTemplates = {
-    email: [
-      {
-        title: "New Launch Announcement",
-        description: "Announce new project launches to your lead database",
-        recipients: "1,247 leads",
-        icon: "fa-bullhorn",
-        color: "blue"
+  const getTypeBadge = (type: string) => {
+    const typeConfig = {
+      whatsapp: { 
+        label: "WhatsApp", 
+        className: "bg-green-100 text-green-800",
+        icon: MessageSquare 
       },
-      {
-        title: "Follow-up Sequence",
-        description: "Automated follow-up emails for unresponsive leads",
-        recipients: "342 leads",
-        icon: "fa-clock",
-        color: "purple"
+      sms: { 
+        label: "SMS", 
+        className: "bg-blue-100 text-blue-800",
+        icon: Phone 
       },
-      {
-        title: "Payment Reminders",
-        description: "Send payment due notifications to customers",
-        recipients: "89 customers",
-        icon: "fa-money-bill",
-        color: "orange"
-      }
-    ],
-    whatsapp: [
-      {
-        title: "Site Visit Reminders",
-        description: "Remind customers about scheduled site visits",
-        recipients: "156 appointments",
-        icon: "fa-calendar-check",
-        color: "green"
+      email: { 
+        label: "Email", 
+        className: "bg-purple-100 text-purple-800",
+        icon: Mail 
       },
-      {
-        title: "Welcome Messages",
-        description: "Welcome new leads with project information",
-        recipients: "78 new leads",
-        icon: "fa-handshake",
-        color: "emerald"
+      automated: { 
+        label: "Automated", 
+        className: "bg-orange-100 text-orange-800",
+        icon: Zap 
       },
-      {
-        title: "Booking Confirmations",
-        description: "Confirm unit bookings and next steps",
-        recipients: "45 bookings",
-        icon: "fa-check-circle",
-        color: "teal"
-      }
-    ],
-    sms: [
-      {
-        title: "Block Expiry Alerts",
-        description: "Alert customers about unit block expiration",
-        recipients: "23 blocked units",
-        icon: "fa-exclamation-triangle",
-        color: "red"
-      },
-      {
-        title: "Deal Closure Reminders",
-        description: "Remind about pending documentation",
-        recipients: "67 deals",
-        icon: "fa-file-contract",
-        color: "yellow"
-      },
-      {
-        title: "Event Invitations",
-        description: "Invite leads to property events",
-        recipients: "892 leads",
-        icon: "fa-calendar-star",
-        color: "pink"
-      }
-    ]
-  };
+    };
 
-  if (communicationsLoading) {
+    const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.sms;
+    const IconComponent = config.icon;
+
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
+      <Badge className={`${config.className} flex items-center gap-1`}>
+        <IconComponent className="w-3 h-3" />
+        {config.label}
+      </Badge>
     );
-  }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      sent: { 
+        label: "Sent", 
+        className: "bg-green-100 text-green-800",
+        icon: CheckCircle 
+      },
+      pending: { 
+        label: "Pending", 
+        className: "bg-yellow-100 text-yellow-800",
+        icon: Clock 
+      },
+      failed: { 
+        label: "Failed", 
+        className: "bg-red-100 text-red-800",
+        icon: AlertCircle 
+      },
+      scheduled: { 
+        label: "Scheduled", 
+        className: "bg-blue-100 text-blue-800",
+        icon: Calendar 
+      },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    const IconComponent = config.icon;
+
+    return (
+      <Badge className={`${config.className} flex items-center gap-1`}>
+        <IconComponent className="w-3 h-3" />
+        {config.label}
+      </Badge>
+    );
+  };
+
+  const filteredCommunications = communications?.filter((comm) => {
+    const matchesSearch = 
+      comm.leadName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      comm.message?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = filterType === "all" || comm.type === filterType;
+    const matchesStatus = filterStatus === "all" || comm.status === filterStatus;
+    
+    return matchesSearch && matchesType && matchesStatus;
+  }) || [];
+
+  const getStats = () => {
+    if (!communications) return { 
+      total: 0, 
+      sent: 0, 
+      pending: 0, 
+      failed: 0,
+      whatsapp: 0,
+      sms: 0,
+      email: 0 
+    };
+    
+    return {
+      total: communications.length,
+      sent: communications.filter(c => c.status === 'sent').length,
+      pending: communications.filter(c => c.status === 'pending').length,
+      failed: communications.filter(c => c.status === 'failed').length,
+      whatsapp: communications.filter(c => c.type === 'whatsapp').length,
+      sms: communications.filter(c => c.type === 'sms').length,
+      email: communications.filter(c => c.type === 'email').length,
+    };
+  };
+
+  const stats = getStats();
 
   return (
     <div className="p-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Communication Center</h2>
-          <p className="text-gray-600">Automated campaigns and customer engagement</p>
+          <h2 className="text-3xl font-bold text-gray-900">Automation & Communication</h2>
+          <p className="text-gray-600">WhatsApp/SMS campaigns, drip marketing, and automated alerts</p>
         </div>
-        <Button onClick={() => setShowCampaignForm(true)} className="bg-primary-500 hover:bg-primary-600">
-          <Send className="w-4 h-4 mr-2" />
-          Create Campaign
-        </Button>
+        <div className="flex space-x-3">
+          <Button onClick={() => setShowMessageForm(true)} className="bg-primary-500 hover:bg-primary-600">
+            <Send className="w-4 h-4 mr-2" />
+            Send Message
+          </Button>
+          <Button onClick={() => setShowCampaignForm(true)} variant="outline">
+            <Target className="w-4 h-4 mr-2" />
+            New Campaign
+          </Button>
+          <Button variant="outline">
+            <Zap className="w-4 h-4 mr-2" />
+            Automation Rules
+          </Button>
+          <Button variant="outline">
+            <Calendar className="w-4 h-4 mr-2" />
+            Schedule Bulk
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-6 mb-8">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Sent</p>
-                <p className="text-2xl font-bold text-gray-900">12,456</p>
-                <p className="text-sm text-success-600">+18% this month</p>
+                <p className="text-sm font-medium text-gray-600">Total Messages</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Send className="text-blue-600 text-xl" />
-              </div>
+              <MessageSquare className="w-8 h-8 text-gray-400" />
             </div>
           </CardContent>
         </Card>
@@ -197,13 +289,10 @@ export default function Communication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Open Rate</p>
-                <p className="text-2xl font-bold text-gray-900">68.4%</p>
-                <p className="text-sm text-success-600">+5.2% improvement</p>
+                <p className="text-sm font-medium text-gray-600">Sent</p>
+                <p className="text-2xl font-bold text-green-600">{stats.sent}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Mail className="text-green-600 text-xl" />
-              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
           </CardContent>
         </Card>
@@ -212,13 +301,10 @@ export default function Communication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Response Rate</p>
-                <p className="text-2xl font-bold text-gray-900">24.7%</p>
-                <p className="text-sm text-success-600">+3.1% increase</p>
+                <p className="text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <MessageCircle className="text-purple-600 text-xl" />
-              </div>
+              <Clock className="w-8 h-8 text-yellow-500" />
             </div>
           </CardContent>
         </Card>
@@ -227,141 +313,206 @@ export default function Communication() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Conversions</p>
-                <p className="text-2xl font-bold text-gray-900">892</p>
-                <p className="text-sm text-success-600">+12% this month</p>
+                <p className="text-sm font-medium text-gray-600">Failed</p>
+                <p className="text-2xl font-bold text-red-600">{stats.failed}</p>
               </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="text-orange-600 text-xl" />
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">WhatsApp</p>
+                <p className="text-2xl font-bold text-green-600">{stats.whatsapp}</p>
               </div>
+              <MessageSquare className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">SMS</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.sms}</p>
+              </div>
+              <Phone className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Email</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.email}</p>
+              </div>
+              <Mail className="w-8 h-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Campaign Templates */}
-      <Card className="mb-8">
+      {/* Active Campaigns */}
+      <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Quick Campaign Templates</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Active Campaigns</span>
+            <Button size="sm" onClick={() => setShowCampaignForm(true)}>
+              <Plus className="w-4 h-4 mr-1" />
+              New Campaign
+            </Button>
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="email" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-6">
-              <TabsTrigger value="email" className="flex items-center space-x-2">
-                <Mail className="w-4 h-4" />
-                <span>Email</span>
-              </TabsTrigger>
-              <TabsTrigger value="whatsapp" className="flex items-center space-x-2">
-                <MessageCircle className="w-4 h-4" />
-                <span>WhatsApp</span>
-              </TabsTrigger>
-              <TabsTrigger value="sms" className="flex items-center space-x-2">
-                <Phone className="w-4 h-4" />
-                <span>SMS</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {Object.entries(campaignTemplates).map(([type, templates]) => (
-              <TabsContent key={type} value={type}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {templates.map((template, index) => (
-                    <Card key={index} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className={`w-12 h-12 bg-${template.color}-100 rounded-lg flex items-center justify-center`}>
-                            <i className={`fas ${template.icon} text-${template.color}-600 text-xl`}></i>
-                          </div>
-                          <Badge variant="secondary">{template.recipients}</Badge>
-                        </div>
-                        <h3 className="font-semibold text-gray-900 mb-2">{template.title}</h3>
-                        <p className="text-sm text-gray-600 mb-4">{template.description}</p>
-                        <Button 
-                          className={`w-full bg-${template.color}-600 hover:bg-${template.color}-700`}
-                          onClick={() => handleSendCampaign(type as any, template.title)}
-                        >
-                          Send Campaign
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+          {campaignsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-24 bg-gray-200 rounded-lg"></div>
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+              ))}
+            </div>
+          ) : campaigns && campaigns.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {campaigns.slice(0, 3).map((campaign) => (
+                <div key={campaign.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-gray-900">{campaign.name}</h3>
+                    <Badge className="bg-blue-100 text-blue-800">Active</Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{campaign.description}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500">
+                      {campaign.targetCount || 0} targets • {campaign.sentCount || 0} sent
+                    </div>
+                    <Button size="sm" variant="outline">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      Analytics
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No active campaigns. Create your first campaign to get started.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Recent Communications */}
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="automated">Automated</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search communications..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Communications List */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Communications</CardTitle>
+          <CardTitle>Communication History ({filteredCommunications.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[
-              {
-                type: "email",
-                subject: "Welcome to Emerald Heights Project",
-                recipient: "rajesh.kumar@email.com",
-                status: "delivered",
-                time: "2 hours ago",
-                icon: "fa-envelope",
-                color: "blue"
-              },
-              {
-                type: "whatsapp",
-                subject: "Site visit reminder for tomorrow",
-                recipient: "+91 9876543210",
-                status: "read",
-                time: "4 hours ago",
-                icon: "fab fa-whatsapp",
-                color: "green"
-              },
-              {
-                type: "sms",
-                subject: "Payment due reminder",
-                recipient: "+91 8765432109",
-                status: "sent",
-                time: "1 day ago",
-                icon: "fa-sms",
-                color: "purple"
-              },
-              {
-                type: "email",
-                subject: "Unit booking confirmation",
-                recipient: "priya.singh@email.com",
-                status: "opened",
-                time: "2 days ago",
-                icon: "fa-envelope",
-                color: "blue"
-              }
-            ].map((comm, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className={`w-10 h-10 bg-${comm.color}-100 rounded-lg flex items-center justify-center`}>
-                    <i className={`${comm.icon} text-${comm.color}-600`}></i>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{comm.subject}</p>
-                    <p className="text-sm text-gray-600">{comm.recipient}</p>
-                  </div>
+          {communicationsLoading ? (
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-16 bg-gray-200 rounded-lg"></div>
                 </div>
-                <div className="text-right">
-                  <Badge 
-                    className={
-                      comm.status === 'delivered' ? 'bg-success-100 text-success-800' :
-                      comm.status === 'read' ? 'bg-blue-100 text-blue-800' :
-                      comm.status === 'opened' ? 'bg-purple-100 text-purple-800' :
-                      'bg-gray-100 text-gray-800'
-                    }
-                  >
-                    {comm.status}
-                  </Badge>
-                  <p className="text-sm text-gray-500 mt-1">{comm.time}</p>
-                </div>
+              ))}
+            </div>
+          ) : filteredCommunications.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="w-12 h-12 text-gray-400" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No communications found</h3>
+              <p className="text-gray-500">Start by sending a message or adjust your filters.</p>
+              <Button 
+                onClick={() => setShowMessageForm(true)} 
+                className="mt-4"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Send Message
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredCommunications.map((comm) => (
+                <div key={comm.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="font-semibold text-gray-900">{comm.leadName || "Unknown Recipient"}</h3>
+                        {getTypeBadge(comm.type)}
+                        {getStatusBadge(comm.status)}
+                      </div>
+                      <p className="text-gray-600 text-sm mb-2">{comm.message}</p>
+                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <span>To: {comm.phone || comm.email}</span>
+                        <span>•</span>
+                        <span>{new Date(comm.sentAt || comm.createdAt).toLocaleString()}</span>
+                        {comm.campaign && (
+                          <>
+                            <span>•</span>
+                            <span>Campaign: {comm.campaign}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

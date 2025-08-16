@@ -334,7 +334,7 @@ export default function Landing() {
             <Button 
               onClick={handleLogin}
               size="lg"
-              className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
             >
               <Shield className="w-5 h-5 mr-3" />
               Start Your Journey
