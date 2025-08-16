@@ -59,8 +59,10 @@ export interface IStorage {
   getAvailableUnits(projectId: string): Promise<Unit[]>;
   
   // Tower operations
-  getTowers(projectId: string): Promise<Tower[]>;
-  createTower(tower: { projectId: string; name: string; floors: number; unitsPerFloor: number }): Promise<Tower>;
+  getTowers(projectId: string): Promise<string[]>;
+  getFloors(tower: string): Promise<number[]>;
+  blockUnit(unitId: string): Promise<Unit>;
+  unblockUnit(unitId: string): Promise<Unit>;
   
   // Booking operations
   getBookings(): Promise<Booking[]>;
@@ -213,13 +215,39 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Tower operations
-  async getTowers(projectId: string): Promise<Tower[]> {
-    return await db.select().from(towers).where(eq(towers.projectId, projectId));
+  async getTowers(projectId: string): Promise<string[]> {
+    const result = await db
+      .selectDistinct({ tower: units.tower })
+      .from(units)
+      .where(eq(units.projectId, projectId));
+    return result.map(r => r.tower).filter(Boolean);
   }
 
-  async createTower(tower: { projectId: string; name: string; floors: number; unitsPerFloor: number }): Promise<Tower> {
-    const [newTower] = await db.insert(towers).values(tower).returning();
-    return newTower;
+  async getFloors(tower: string): Promise<number[]> {
+    const result = await db
+      .selectDistinct({ floor: units.floor })
+      .from(units)
+      .where(eq(units.tower, tower))
+      .orderBy(units.floor);
+    return result.map(r => r.floor).filter(Boolean);
+  }
+
+  async blockUnit(unitId: string): Promise<Unit> {
+    const [updatedUnit] = await db
+      .update(units)
+      .set({ status: 'blocked', updatedAt: new Date() })
+      .where(eq(units.id, unitId))
+      .returning();
+    return updatedUnit;
+  }
+
+  async unblockUnit(unitId: string): Promise<Unit> {
+    const [updatedUnit] = await db
+      .update(units)
+      .set({ status: 'available', updatedAt: new Date() })
+      .where(eq(units.id, unitId))
+      .returning();
+    return updatedUnit;
   }
 
   // Booking operations

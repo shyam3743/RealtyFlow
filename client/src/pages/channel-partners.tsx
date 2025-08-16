@@ -42,7 +42,7 @@ export default function ChannelPartners() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: partners, isLoading: partnersLoading } = useQuery({
+  const { data: partners, isLoading: partnersLoading } = useQuery<any[]>({
     queryKey: ["/api/channel-partners"],
     retry: false,
   });
@@ -79,7 +79,7 @@ export default function ChannelPartners() {
     },
   });
 
-  const filteredPartners = partners?.filter((partner: any) => {
+  const filteredPartners = partners?.filter((partner) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       partner.name.toLowerCase().includes(searchLower) ||
@@ -162,7 +162,7 @@ export default function ChannelPartners() {
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Partners</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {partners?.filter((p: any) => p.isActive).length || 0}
+                  {partners?.filter((p) => p.isActive).length || 0}
                 </p>
               </div>
               <div className="w-12 h-12 bg-success-100 rounded-lg flex items-center justify-center">
@@ -178,7 +178,7 @@ export default function ChannelPartners() {
               <div>
                 <p className="text-sm font-medium text-gray-600">KYC Completed</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {partners?.filter((p: any) => p.kycStatus).length || 0}
+                  {partners?.filter((p) => p.kycStatus).length || 0}
                 </p>
               </div>
               <div className="w-12 h-12 bg-warning-100 rounded-lg flex items-center justify-center">

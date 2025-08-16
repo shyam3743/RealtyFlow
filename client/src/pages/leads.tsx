@@ -12,6 +12,7 @@ import LeadForm from "@/components/forms/lead-form";
 import LeadsTable from "@/components/tables/leads-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plus, Search, Download } from "lucide-react";
+import { LeadWithDetails } from "@/types";
 
 export default function Leads() {
   const [showLeadForm, setShowLeadForm] = useState(false);
@@ -36,7 +37,7 @@ export default function Leads() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: leads, isLoading: leadsLoading } = useQuery({
+  const { data: leads, isLoading: leadsLoading } = useQuery<LeadWithDetails[]>({
     queryKey: ["/api/leads"],
     retry: false,
   });
@@ -86,7 +87,7 @@ export default function Leads() {
     });
   };
 
-  const filteredLeads = leads?.filter((lead: any) => {
+  const filteredLeads = leads?.filter((lead) => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          lead.phone.includes(searchTerm) ||
                          (lead.email && lead.email.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -96,13 +97,13 @@ export default function Leads() {
 
   const leadStatuses = [
     { value: "all", label: "All Status", count: leads?.length || 0 },
-    { value: "new", label: "New", count: leads?.filter((l: any) => l.status === "new").length || 0 },
-    { value: "contacted", label: "Contacted", count: leads?.filter((l: any) => l.status === "contacted").length || 0 },
-    { value: "site_visit", label: "Site Visit", count: leads?.filter((l: any) => l.status === "site_visit").length || 0 },
-    { value: "negotiation", label: "Negotiation", count: leads?.filter((l: any) => l.status === "negotiation").length || 0 },
-    { value: "booking", label: "Booking", count: leads?.filter((l: any) => l.status === "booking").length || 0 },
-    { value: "sale", label: "Sale", count: leads?.filter((l: any) => l.status === "sale").length || 0 },
-    { value: "lost", label: "Lost", count: leads?.filter((l: any) => l.status === "lost").length || 0 },
+    { value: "new", label: "New", count: leads?.filter((l) => l.status === "new").length || 0 },
+    { value: "contacted", label: "Contacted", count: leads?.filter((l) => l.status === "contacted").length || 0 },
+    { value: "site_visit", label: "Site Visit", count: leads?.filter((l) => l.status === "site_visit").length || 0 },
+    { value: "negotiation", label: "Negotiation", count: leads?.filter((l) => l.status === "negotiation").length || 0 },
+    { value: "booking", label: "Booking", count: leads?.filter((l) => l.status === "booking").length || 0 },
+    { value: "sale", label: "Sale", count: leads?.filter((l) => l.status === "sale").length || 0 },
+    { value: "lost", label: "Lost", count: leads?.filter((l) => l.status === "lost").length || 0 },
   ];
 
   if (leadsLoading) {
@@ -180,10 +181,67 @@ export default function Leads() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <LeadsTable 
-            leads={filteredLeads}
-            projects={projects || []}
-          />
+          <div className="space-y-4">
+            {filteredLeads.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No leads found matching your criteria</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Phone</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Source</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Budget</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-900">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLeads.map((lead) => (
+                      <tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <div>
+                            <p className="font-medium text-gray-900">{lead.name}</p>
+                            {lead.email && <p className="text-sm text-gray-600">{lead.email}</p>}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900">{lead.phone}</td>
+                        <td className="py-3 px-4">
+                          <Badge variant="secondary" className="text-xs">
+                            {lead.source.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge 
+                            className={`text-xs ${
+                              lead.status === 'new' ? 'bg-blue-100 text-blue-600' :
+                              lead.status === 'contacted' ? 'bg-orange-100 text-orange-600' :
+                              lead.status === 'site_visit' ? 'bg-purple-100 text-purple-600' :
+                              lead.status === 'negotiation' ? 'bg-yellow-100 text-yellow-600' :
+                              lead.status === 'booking' ? 'bg-indigo-100 text-indigo-600' :
+                              lead.status === 'sale' ? 'bg-green-100 text-green-600' :
+                              'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {lead.status.replace('_', ' ').toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900">
+                          {lead.budget ? `₹${parseFloat(lead.budget).toLocaleString()}` : '-'}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 text-sm">
+                          {new Date(lead.createdAt).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

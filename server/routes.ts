@@ -82,6 +82,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Unit routes - Complete inventory management
+  app.get('/api/units', isAuthenticated, async (req, res) => {
+    try {
+      const { projectId } = req.query;
+      const units = await storage.getUnits(projectId as string);
+      res.json(units);
+    } catch (error) {
+      console.error("Error fetching units:", error);
+      res.status(500).json({ message: "Failed to fetch units" });
+    }
+  });
+
+  app.get('/api/towers/:projectId', isAuthenticated, async (req, res) => {
+    try {
+      const towers = await storage.getTowers(req.params.projectId);
+      res.json(towers);
+    } catch (error) {
+      console.error("Error fetching towers:", error);
+      res.status(500).json({ message: "Failed to fetch towers" });
+    }
+  });
+
+  app.get('/api/floors/:tower', isAuthenticated, async (req, res) => {
+    try {
+      const floors = await storage.getFloors(req.params.tower);
+      res.json(floors);
+    } catch (error) {
+      console.error("Error fetching floors:", error);
+      res.status(500).json({ message: "Failed to fetch floors" });
+    }
+  });
+
+  app.post('/api/units/:unitId/block', isAuthenticated, async (req, res) => {
+    try {
+      const unit = await storage.blockUnit(req.params.unitId);
+      res.json(unit);
+    } catch (error) {
+      console.error("Error blocking unit:", error);
+      res.status(500).json({ message: "Failed to block unit" });
+    }
+  });
+
+  app.post('/api/units/:unitId/unblock', isAuthenticated, async (req, res) => {
+    try {
+      const unit = await storage.unblockUnit(req.params.unitId);
+      res.json(unit);
+    } catch (error) {
+      console.error("Error unblocking unit:", error);
+      res.status(500).json({ message: "Failed to unblock unit" });
+    }
+  });
+
+  app.post('/api/units', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertUnitSchema.parse(req.body);
+      const unit = await storage.createUnit(validatedData);
+      res.json(unit);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating unit:", error);
+      res.status(500).json({ message: "Failed to create unit" });
+    }
+  });
+
   app.put('/api/projects/:id', isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertProjectSchema.partial().parse(req.body);

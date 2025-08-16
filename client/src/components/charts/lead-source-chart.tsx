@@ -49,7 +49,7 @@ export default function LeadSourceChart({ data }: LeadSourceChartProps) {
           </Pie>
           <Tooltip />
           <Legend 
-            position="bottom"
+            verticalAlign="bottom"
             wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }}
           />
         </PieChart>

@@ -7,6 +7,19 @@ export interface DashboardMetrics {
   leadsBySource: Array<{ source: string; count: number }>;
 }
 
+export interface User {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  role: 'developer_hq' | 'project_admin' | 'sales_team';
+  phone?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface LeadWithDetails {
   id: string;
   name: string;

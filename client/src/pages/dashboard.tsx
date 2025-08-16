@@ -193,7 +193,7 @@ export default function Dashboard() {
       {/* Projects and Communication Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
         {/* Project Cards */}
-        {projects?.slice(0, 3).map((project: any) => (
+        {(projects as any[])?.slice(0, 3).map((project: any) => (
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>
@@ -259,7 +259,7 @@ export default function Dashboard() {
             </div>
             
             <div className="space-y-3">
-              {pendingPayments?.slice(0, 2).map((payment: any, index: number) => (
+              {(pendingPayments as any[])?.slice(0, 2).map((payment: any, index: number) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium text-gray-900">Payment Due</p>

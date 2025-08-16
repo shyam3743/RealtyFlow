@@ -43,11 +43,7 @@ export default function LeadForm({ projects, onSubmit, isLoading, onCancel }: Le
   });
 
   const handleSubmit = (data: LeadFormData) => {
-    const submitData = {
-      ...data,
-      budget: data.budget ? parseFloat(data.budget) : undefined,
-    };
-    onSubmit(submitData);
+    onSubmit(data);
   };
 
   return (
