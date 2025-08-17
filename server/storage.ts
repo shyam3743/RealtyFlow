@@ -19,6 +19,7 @@ import {
   type Unit,
   type InsertUnit,
   type Tower,
+  type InsertTower,
   type Booking,
   type InsertBooking,
   type Payment,
@@ -62,6 +63,7 @@ export interface IStorage {
   // Tower operations
   getTowers(projectId: string): Promise<string[]>;
   getFloors(tower: string): Promise<number[]>;
+  createTower(tower: InsertTower): Promise<Tower>;
   blockUnit(unitId: string): Promise<Unit>;
   unblockUnit(unitId: string): Promise<Unit>;
   
@@ -236,6 +238,11 @@ export class DatabaseStorage implements IStorage {
       .groupBy(units.floor)
       .orderBy(units.floor);
     return result.map(r => r.floor);
+  }
+
+  async createTower(tower: InsertTower): Promise<Tower> {
+    const [newTower] = await db.insert(towers).values(tower).returning();
+    return newTower;
   }
 
   async blockUnit(unitId: string): Promise<Unit> {

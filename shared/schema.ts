@@ -369,6 +369,11 @@ export const insertCommunicationSchema = createInsertSchema(communications).omit
   id: true,
 });
 
+export const insertTowerSchema = createInsertSchema(towers).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -390,3 +395,4 @@ export type InsertLeadActivity = z.infer<typeof insertLeadActivitySchema>;
 export type Communication = typeof communications.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type Tower = typeof towers.$inferSelect;
+export type InsertTower = z.infer<typeof insertTowerSchema>;
