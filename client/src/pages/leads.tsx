@@ -62,6 +62,7 @@ const leadFormSchema = z.object({
   preferences: z.string().optional(),
   notes: z.string().optional(),
   assignedTo: z.string().optional(),
+  projectId: z.string().optional(),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
@@ -89,6 +90,7 @@ export default function Leads() {
       preferences: "",
       notes: "",
       assignedTo: "",
+      projectId: "",
     },
   });
 
@@ -118,12 +120,18 @@ export default function Leads() {
         preferences: editingLead.preferences || "",
         notes: editingLead.notes || "",
         assignedTo: editingLead.assignedTo || "",
+        projectId: editingLead.projectId || "",
       });
     }
   }, [editingLead, form]);
 
   const { data: leads, isLoading: leadsLoading } = useQuery<any[]>({
     queryKey: ["/api/leads"],
+    retry: false,
+  });
+
+  const { data: projects = [] } = useQuery<any[]>({
+    queryKey: ["/api/projects"],
     retry: false,
   });
 
@@ -435,6 +443,31 @@ export default function Leads() {
 
                     <FormField
                       control={form.control}
+                      name="projectId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interested Project</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select project" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {projects.map((project) => (
+                                <SelectItem key={project.id} value={project.id}>
+                                  {project.name} - {project.location}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="assignedTo"
                       render={({ field }) => (
                         <FormItem>
@@ -467,31 +500,6 @@ export default function Leads() {
                           <FormControl>
                             <Input placeholder="e.g., 50-75 Lakhs" {...field} />
                           </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="assignedTo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Assigned To</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select team member" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {salesTeam.map((member) => (
-                                <SelectItem key={member} value={member}>
-                                  {member}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}
