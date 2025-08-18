@@ -62,7 +62,6 @@ const leadFormSchema = z.object({
   preferences: z.string().optional(),
   notes: z.string().optional(),
   assignedTo: z.string().optional(),
-  projectId: z.string().optional(),
 });
 
 type LeadFormData = z.infer<typeof leadFormSchema>;
@@ -90,7 +89,6 @@ export default function Leads() {
       preferences: "",
       notes: "",
       assignedTo: "",
-      projectId: "",
     },
   });
 
