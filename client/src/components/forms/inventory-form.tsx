@@ -13,10 +13,6 @@ const inventoryFormSchema = z.object({
   floor: z.number().min(0, "Floor must be a positive number"),
   propertyType: z.enum(["flat", "bungalow", "row_house", "shop", "office"]),
   size: z.number().min(1, "Size must be greater than 0"),
-  baseRate: z.number().min(1, "Base rate must be greater than 0"),
-  plc: z.number().min(0, "PLC must be a positive number").optional(),
-  gst: z.number().min(0, "GST must be a positive number").optional(),
-  stampDuty: z.number().min(0, "Stamp duty must be a positive number").optional(),
   view: z.string().optional(),
   facing: z.string().optional(),
 });
@@ -55,10 +51,6 @@ export default function InventoryForm({
       floor: editUnit?.floor || 0,
       propertyType: editUnit?.propertyType || "flat",
       size: editUnit?.size || 0,
-      baseRate: editUnit?.baseRate || 0,
-      plc: editUnit?.plc || 0,
-      gst: editUnit?.gst || 5, // Default GST rate
-      stampDuty: editUnit?.stampDuty || 0,
       view: editUnit?.view || "",
       facing: editUnit?.facing || "",
     },
@@ -67,7 +59,12 @@ export default function InventoryForm({
   const handleSubmit = (data: InventoryFormData) => {
     const submitData = {
       ...data,
-      totalPrice: data.baseRate + (data.plc || 0) + (data.gst || 0) + (data.stampDuty || 0),
+      // Set default values for pricing fields to maintain backend compatibility
+      baseRate: 0,
+      plc: 0,
+      gst: 0,
+      stampDuty: 0,
+      totalPrice: 0,
     };
     onSubmit(submitData);
   };
@@ -204,86 +201,6 @@ export default function InventoryForm({
                   <Input 
                     type="number" 
                     placeholder="Unit size" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="baseRate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Base Rate (₹) *</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="Base rate per sq ft" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="plc"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>PLC (₹)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="Preferential Location Charges" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="gst"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>GST (%)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="GST percentage" 
-                    {...field}
-                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="stampDuty"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Stamp Duty (₹)</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="Stamp duty amount" 
                     {...field}
                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                   />

@@ -36,123 +36,14 @@ export class MockStorage implements IStorage {
   }
 
   private initializeSampleData() {
-    // Sample Projects
-    this.projects = [
-      {
-        id: 'project-1',
-        name: 'Skyline Towers',
-        location: 'Gurgaon, Haryana',
-        description: 'Premium residential apartments with modern amenities',
-        totalUnits: 200,
-        availableUnits: 150,
-        blockedUnits: 20,
-        soldUnits: 30,
-        basePrice: 5000000,
-        status: 'active',
-        imageUrl: null,
-        launchDate: new Date('2023-01-15'),
-        completionDate: new Date('2025-12-31'),
-        developerId: '1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 'project-2',
-        name: 'Green Valley Resort',
-        location: 'Noida, Uttar Pradesh',
-        description: 'Eco-friendly residential complex with garden view',
-        totalUnits: 150,
-        availableUnits: 100,
-        blockedUnits: 15,
-        soldUnits: 35,
-        basePrice: 7500000,
-        status: 'active',
-        imageUrl: null,
-        launchDate: new Date('2023-06-01'),
-        completionDate: new Date('2026-03-31'),
-        developerId: '1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        id: 'project-3',
-        name: 'Metro Plaza',
-        location: 'Delhi, India',
-        description: 'Commercial and residential complex near metro station',
-        totalUnits: 80,
-        availableUnits: 60,
-        blockedUnits: 10,
-        soldUnits: 10,
-        basePrice: 12000000,
-        status: 'pre_launch',
-        imageUrl: null,
-        launchDate: new Date('2024-02-01'),
-        completionDate: new Date('2026-12-31'),
-        developerId: '1',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
+    // Sample Projects - Empty initially, users can add their own
+    this.projects = [];
 
-    // Sample Towers
-    this.towers = [
-      // Skyline Towers
-      { id: 'tower-1', projectId: 'project-1', name: 'Tower A', floors: 20, unitsPerFloor: 4, createdAt: new Date() },
-      { id: 'tower-2', projectId: 'project-1', name: 'Tower B', floors: 25, unitsPerFloor: 4, createdAt: new Date() },
-      { id: 'tower-3', projectId: 'project-1', name: 'Tower C', floors: 18, unitsPerFloor: 6, createdAt: new Date() },
-      
-      // Green Valley Resort
-      { id: 'tower-4', projectId: 'project-2', name: 'Block 1', floors: 15, unitsPerFloor: 5, createdAt: new Date() },
-      { id: 'tower-5', projectId: 'project-2', name: 'Block 2', floors: 12, unitsPerFloor: 5, createdAt: new Date() },
-      
-      // Metro Plaza
-      { id: 'tower-6', projectId: 'project-3', name: 'North Wing', floors: 30, unitsPerFloor: 2, createdAt: new Date() },
-      { id: 'tower-7', projectId: 'project-3', name: 'South Wing', floors: 25, unitsPerFloor: 2, createdAt: new Date() }
-    ];
+    // Sample Towers - Empty initially, users can add their own
+    this.towers = [];
 
-    // Sample Units (just a few for demonstration)
-    this.units = [
-      {
-        id: 'unit-1',
-        towerId: 'tower-1',
-        projectId: 'project-1',
-        unitNumber: '101',
-        floor: 1,
-        propertyType: 'flat',
-        size: 1200,
-        baseRate: 4800000,
-        plc: 200000,
-        gst: 240000,
-        stampDuty: 100000,
-        totalPrice: 5340000,
-        status: 'available',
-        view: 'garden',
-        facing: 'north',
-        blockedAt: null,
-        blockExpiryAt: null,
-        createdAt: new Date()
-      },
-      {
-        id: 'unit-2',
-        towerId: 'tower-1',
-        projectId: 'project-1',
-        unitNumber: '102',
-        floor: 1,
-        propertyType: 'flat',
-        size: 1350,
-        baseRate: 5400000,
-        plc: 250000,
-        gst: 270000,
-        stampDuty: 120000,
-        totalPrice: 6040000,
-        status: 'booked',
-        view: 'city',
-        facing: 'east',
-        blockedAt: null,
-        blockExpiryAt: null,
-        createdAt: new Date()
-      }
-    ];
+    // Sample Units - Empty initially, users can add their own
+    this.units = [];
   }
 
   // User operations
