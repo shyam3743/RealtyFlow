@@ -485,3 +485,4 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export { storage };
+export type { User, UpsertUser };
