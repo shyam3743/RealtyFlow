@@ -204,6 +204,27 @@ export const communications = pgTable("communications", {
   createdBy: varchar("created_by").references(() => users.id),
 });
 
+export const negotiations = pgTable("negotiations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  leadId: varchar("lead_id").references(() => leads.id),
+  unitId: varchar("unit_id").references(() => units.id),
+  projectId: varchar("project_id").references(() => projects.id),
+  status: varchar("status").default('pending'), // pending, negotiating, approved, rejected
+  basePrice: decimal("base_price", { precision: 15, scale: 2 }),
+  requestedPrice: decimal("requested_price", { precision: 15, scale: 2 }),
+  offeredPrice: decimal("offered_price", { precision: 15, scale: 2 }),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+  tokenAmount: decimal("token_amount", { precision: 15, scale: 2 }),
+  paymentPlan: varchar("payment_plan"), // full_dp, subvention, tlp, clp, custom
+  isTokenReady: boolean("is_token_ready").default(false),
+  notes: text("notes"),
+  adminNotes: text("admin_notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   developer: one(users, {
@@ -249,6 +270,7 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   bookings: many(bookings),
   communications: many(communications),
   channelPartnerLeads: many(channelPartnerLeads),
+  negotiations: many(negotiations),
 }));
 
 export const leadActivitiesRelations = relations(leadActivities, ({ one }) => ({
@@ -315,6 +337,29 @@ export const communicationsRelations = relations(communications, ({ one }) => ({
   }),
 }));
 
+export const negotiationsRelations = relations(negotiations, ({ one }) => ({
+  lead: one(leads, {
+    fields: [negotiations.leadId],
+    references: [leads.id],
+  }),
+  unit: one(units, {
+    fields: [negotiations.unitId],
+    references: [units.id],
+  }),
+  project: one(projects, {
+    fields: [negotiations.projectId],
+    references: [projects.id],
+  }),
+  createdBy: one(users, {
+    fields: [negotiations.createdBy],
+    references: [users.id],
+  }),
+  approvedBy: one(users, {
+    fields: [negotiations.approvedBy],
+    references: [users.id],
+  }),
+}));
+
 export const usersRelations = relations(users, ({ many }) => ({
   assignedLeads: many(leads),
   activities: many(leadActivities),
@@ -371,6 +416,12 @@ export const insertCommunicationSchema = createInsertSchema(communications).omit
   id: true,
 });
 
+export const insertNegotiationSchema = createInsertSchema(negotiations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertTowerSchema = createInsertSchema(towers).omit({
   id: true,
   createdAt: true,
@@ -396,5 +447,7 @@ export type LeadActivity = typeof leadActivities.$inferSelect;
 export type InsertLeadActivity = z.infer<typeof insertLeadActivitySchema>;
 export type Communication = typeof communications.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+export type Negotiation = typeof negotiations.$inferSelect;
+export type InsertNegotiation = z.infer<typeof insertNegotiationSchema>;
 export type Tower = typeof towers.$inferSelect;
 export type InsertTower = z.infer<typeof insertTowerSchema>;

@@ -10,7 +10,8 @@ import {
   insertPaymentSchema,
   insertChannelPartnerSchema,
   insertLeadActivitySchema,
-  insertCommunicationSchema
+  insertCommunicationSchema,
+  insertNegotiationSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
 
@@ -551,6 +552,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating communication:", error);
       res.status(500).json({ message: "Failed to create communication" });
+    }
+  });
+
+  // Negotiation routes
+  app.get('/api/negotiations', isAuthenticated, async (req, res) => {
+    try {
+      const negotiations = await storage.getNegotiations();
+      res.json(negotiations);
+    } catch (error) {
+      console.error("Error fetching negotiations:", error);
+      res.status(500).json({ message: "Failed to fetch negotiations" });
+    }
+  });
+
+  app.get('/api/negotiations/:id', isAuthenticated, async (req, res) => {
+    try {
+      const negotiation = await storage.getNegotiation(req.params.id);
+      if (!negotiation) {
+        return res.status(404).json({ message: "Negotiation not found" });
+      }
+      res.json(negotiation);
+    } catch (error) {
+      console.error("Error fetching negotiation:", error);
+      res.status(500).json({ message: "Failed to fetch negotiation" });
+    }
+  });
+
+  app.post('/api/negotiations', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertNegotiationSchema.parse({
+        ...req.body,
+        createdBy: req.user.claims.sub
+      });
+      const negotiation = await storage.createNegotiation(validatedData);
+      res.json(negotiation);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating negotiation:", error);
+      res.status(500).json({ message: "Failed to create negotiation" });
+    }
+  });
+
+  app.put('/api/negotiations/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertNegotiationSchema.partial().parse(req.body);
+      const negotiation = await storage.updateNegotiation(req.params.id, validatedData);
+      res.json(negotiation);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating negotiation:", error);
+      res.status(500).json({ message: "Failed to update negotiation" });
     }
   });
 
