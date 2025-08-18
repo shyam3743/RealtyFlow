@@ -331,6 +331,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/units/:id', isAuthenticated, async (req, res) => {
+    try {
+      await storage.deleteUnit(req.params.id);
+      res.json({ message: "Unit deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting unit:", error);
+      res.status(500).json({ message: "Failed to delete unit" });
+    }
+  });
+
   app.get('/api/projects/:projectId/available-units', isAuthenticated, async (req, res) => {
     try {
       const units = await storage.getAvailableUnits(req.params.projectId);

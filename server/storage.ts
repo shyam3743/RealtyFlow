@@ -61,6 +61,7 @@ export interface IStorage {
   getUnit(id: string): Promise<Unit | undefined>;
   createUnit(unit: InsertUnit): Promise<Unit>;
   updateUnit(id: string, unit: Partial<InsertUnit>): Promise<Unit>;
+  deleteUnit(id: string): Promise<void>;
   getAvailableUnits(projectId: string): Promise<Unit[]>;
   
   // Tower operations
@@ -228,6 +229,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(units)
       .where(and(eq(units.projectId, projectId), eq(units.status, 'available')));
+  }
+
+  async deleteUnit(id: string): Promise<void> {
+    await db.delete(units).where(eq(units.id, id));
   }
 
   // Tower operations
