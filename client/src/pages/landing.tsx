@@ -1,11 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, Route, Building, ChartBar, ArrowRight, Shield, Zap, Target } from "lucide-react";
+import { Users, Route, Building, ChartBar, ArrowRight, Shield, Zap, Target, UserPlus } from "lucide-react";
 
 export default function Landing() {
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
+  };
+
+  const handleRegister = () => {
+    window.location.href = "/register";
   };
 
   return (
@@ -24,13 +28,23 @@ export default function Landing() {
               <p className="text-sm text-gray-600 dark:text-gray-400">Sales Management System</p>
             </div>
           </div>
-          <Button 
-            onClick={handleLogin}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
-          >
-            <Shield className="w-4 h-4 mr-2" />
-            Secure Login
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button 
+              onClick={handleRegister}
+              variant="outline"
+              className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Register
+            </Button>
+            <Button 
+              onClick={handleLogin}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              Login
+            </Button>
+          </div>
         </nav>
 
         {/* Hero Section */}
@@ -85,23 +99,6 @@ export default function Landing() {
               Advanced Analytics
             </div>
           </div>
-        </div>
-
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <img 
-            src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=600" 
-            alt="Modern Real Estate Office" 
-            className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl mb-8"
-          />
-          <Button 
-            onClick={handleLogin}
-            size="lg"
-            className="bg-primary-500 hover:bg-primary-600 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg"
-          >
-            <i className="fas fa-sign-in-alt mr-3"></i>
-            Access CRM Dashboard
-          </Button>
         </div>
 
         {/* Features Grid */}

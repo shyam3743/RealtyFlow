@@ -8,7 +8,14 @@ export default function TopNav() {
   const { user } = useAuth();
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    fetch('/api/auth/logout', { method: 'POST' })
+      .then(() => {
+        window.location.href = "/";
+      })
+      .catch(() => {
+        // Fallback to OAuth logout
+        window.location.href = "/api/logout";
+      });
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -37,9 +44,10 @@ export default function TopNav() {
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="master">Master</SelectItem>
               <SelectItem value="developer_hq">Developer HQ</SelectItem>
-              <SelectItem value="project_admin">Project Admin</SelectItem>
-              <SelectItem value="sales_team">Sales Team</SelectItem>
+              <SelectItem value="sales_admin">Sales Admin</SelectItem>
+              <SelectItem value="sales_executive">Sales Executive</SelectItem>
             </SelectContent>
           </Select>
 
