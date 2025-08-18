@@ -15,8 +15,10 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import InventoryForm from "@/components/forms/inventory-form";
+import ViewUnitDialog from "@/components/dialogs/view-unit-dialog";
+import DeleteUnitDialog from "@/components/dialogs/delete-unit-dialog";
 import { 
   Plus, 
   Search, 
@@ -35,7 +37,8 @@ import {
   Clock,
   Building2,
   Store,
-  Briefcase
+  Briefcase,
+  Trash2
 } from "lucide-react";
 
 export default function Inventory() {
@@ -46,6 +49,9 @@ export default function Inventory() {
   const [showUnitForm, setShowUnitForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPropertyType, setFilterPropertyType] = useState<string>("all");
+  const [viewingUnit, setViewingUnit] = useState<any>(null);
+  const [editingUnit, setEditingUnit] = useState<any>(null);
+  const [deletingUnit, setDeletingUnit] = useState<any>(null);
 
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
@@ -148,6 +154,70 @@ export default function Inventory() {
       toast({
         title: "Error",
         description: "Failed to create unit",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateUnitMutation = useMutation({
+    mutationFn: async ({ id, unitData }: { id: string; unitData: any }) => {
+      await apiRequest("PUT", `/api/units/${id}`, unitData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/units"] });
+      toast({
+        title: "Success",
+        description: "Unit updated successfully",
+      });
+      setEditingUnit(null);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update unit",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteUnitMutation = useMutation({
+    mutationFn: async (unitId: string) => {
+      await apiRequest("DELETE", `/api/units/${unitId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/units"] });
+      toast({
+        title: "Success",
+        description: "Unit deleted successfully",
+      });
+      setDeletingUnit(null);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete unit",
         variant: "destructive",
       });
     },
@@ -531,23 +601,43 @@ export default function Inventory() {
 
                     {/* Action buttons */}
                     <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => setViewingUnit(unit)}
+                      >
                         <Eye className="w-3 h-3 mr-1" />
                         View
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => setEditingUnit(unit)}
+                      >
                         <Edit className="w-3 h-3 mr-1" />
                         Edit
                       </Button>
                       {unit.status === 'available' ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'block' })}
-                          className="text-yellow-600 hover:text-yellow-700 border-yellow-300 hover:border-yellow-400"
-                        >
-                          <Lock className="w-3 h-3" />
-                        </Button>
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'block' })}
+                            className="text-yellow-600 hover:text-yellow-700 border-yellow-300 hover:border-yellow-400"
+                          >
+                            <Lock className="w-3 h-3" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setDeletingUnit(unit)}
+                            className="text-red-600 hover:text-red-700 border-red-300 hover:border-red-400"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </>
                       ) : unit.status === 'blocked' ? (
                         <Button 
                           variant="outline" 
@@ -581,9 +671,55 @@ export default function Inventory() {
             onCancel={() => setShowUnitForm(false)}
             selectedProjectId={selectedProject !== "all" ? selectedProject : undefined}
             onProjectChange={(projectId) => setSelectedProject(projectId)}
+            mode="create"
           />
         </DialogContent>
       </Dialog>
+
+      {/* Edit Unit Dialog */}
+      <Dialog open={!!editingUnit} onOpenChange={(open) => !open && setEditingUnit(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Unit {editingUnit?.unitNumber}</DialogTitle>
+          </DialogHeader>
+          {editingUnit && (
+            <InventoryForm
+              projects={projects || []}
+              towers={towers || []}
+              onSubmit={(data) => updateUnitMutation.mutate({ id: editingUnit.id, unitData: data })}
+              isLoading={updateUnitMutation.isPending}
+              onCancel={() => setEditingUnit(null)}
+              selectedProjectId={editingUnit.projectId}
+              editUnit={editingUnit}
+              mode="edit"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Unit Dialog */}
+      <ViewUnitDialog
+        unit={viewingUnit}
+        open={!!viewingUnit}
+        onOpenChange={(open) => !open && setViewingUnit(null)}
+        onEdit={() => {
+          setEditingUnit(viewingUnit);
+          setViewingUnit(null);
+        }}
+        onDelete={() => {
+          setDeletingUnit(viewingUnit);
+          setViewingUnit(null);
+        }}
+      />
+
+      {/* Delete Unit Confirmation Dialog */}
+      <DeleteUnitDialog
+        unit={deletingUnit}
+        open={!!deletingUnit}
+        onOpenChange={(open) => !open && setDeletingUnit(null)}
+        onConfirm={() => deleteUnitMutation.mutate(deletingUnit.id)}
+        isLoading={deleteUnitMutation.isPending}
+      />
     </div>
   );
 }

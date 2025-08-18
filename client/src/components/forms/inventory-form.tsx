@@ -31,6 +31,8 @@ interface InventoryFormProps {
   onCancel: () => void;
   selectedProjectId?: string;
   onProjectChange?: (projectId: string) => void;
+  editUnit?: any; // Unit data for editing
+  mode?: 'create' | 'edit'; // Form mode
 }
 
 export default function InventoryForm({ 
@@ -40,23 +42,25 @@ export default function InventoryForm({
   isLoading, 
   onCancel, 
   selectedProjectId,
-  onProjectChange 
+  onProjectChange,
+  editUnit,
+  mode = 'create'
 }: InventoryFormProps) {
   const form = useForm<InventoryFormData>({
     resolver: zodResolver(inventoryFormSchema),
     defaultValues: {
-      projectId: selectedProjectId || "",
-      towerId: "",
-      unitNumber: "",
-      floor: 0,
-      propertyType: "flat",
-      size: 0,
-      baseRate: 0,
-      plc: 0,
-      gst: 5, // Default GST rate
-      stampDuty: 0,
-      view: "",
-      facing: "",
+      projectId: editUnit?.projectId || selectedProjectId || "",
+      towerId: editUnit?.towerId || "",
+      unitNumber: editUnit?.unitNumber || "",
+      floor: editUnit?.floor || 0,
+      propertyType: editUnit?.propertyType || "flat",
+      size: editUnit?.size || 0,
+      baseRate: editUnit?.baseRate || 0,
+      plc: editUnit?.plc || 0,
+      gst: editUnit?.gst || 5, // Default GST rate
+      stampDuty: editUnit?.stampDuty || 0,
+      view: editUnit?.view || "",
+      facing: editUnit?.facing || "",
     },
   });
 
@@ -350,7 +354,7 @@ export default function InventoryForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isLoading} className="bg-primary-500 hover:bg-primary-600">
-            {isLoading ? "Creating..." : "Create Unit"}
+            {isLoading ? (mode === 'edit' ? "Updating..." : "Creating...") : (mode === 'edit' ? "Update Unit" : "Create Unit")}
           </Button>
         </div>
       </form>
