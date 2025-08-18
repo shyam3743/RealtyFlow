@@ -11,6 +11,7 @@ const inventoryFormSchema = z.object({
   towerId: z.string().min(1, "Tower is required"),
   unitNumber: z.string().min(1, "Unit number is required"),
   floor: z.number().min(0, "Floor must be a positive number"),
+  propertyType: z.enum(["flat", "bungalow", "row_house", "shop", "office"]),
   size: z.number().min(1, "Size must be greater than 0"),
   baseRate: z.number().min(1, "Base rate must be greater than 0"),
   plc: z.number().min(0, "PLC must be a positive number").optional(),
@@ -48,6 +49,7 @@ export default function InventoryForm({
       towerId: "",
       unitNumber: "",
       floor: 0,
+      propertyType: "flat",
       size: 0,
       baseRate: 0,
       plc: 0,
@@ -163,6 +165,33 @@ export default function InventoryForm({
 
           <FormField
             control={form.control}
+            name="propertyType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Property Type *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select property type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="flat">Flat</SelectItem>
+                    <SelectItem value="bungalow">Bungalow</SelectItem>
+                    <SelectItem value="row_house">Row House</SelectItem>
+                    <SelectItem value="shop">Shop</SelectItem>
+                    <SelectItem value="office">Office</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
             name="size"
             render={({ field }) => (
               <FormItem>
@@ -179,9 +208,7 @@ export default function InventoryForm({
               </FormItem>
             )}
           />
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="baseRate"
@@ -200,6 +227,7 @@ export default function InventoryForm({
               </FormItem>
             )}
           />
+        </div>
 
           <FormField
             control={form.control}

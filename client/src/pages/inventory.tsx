@@ -31,7 +31,10 @@ import {
   Grid,
   CheckCircle,
   AlertCircle,
-  Clock
+  Clock,
+  Building2,
+  Store,
+  Briefcase
 } from "lucide-react";
 
 export default function Inventory() {
@@ -41,6 +44,7 @@ export default function Inventory() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showUnitForm, setShowUnitForm] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPropertyType, setFilterPropertyType] = useState<string>("all");
 
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
@@ -122,12 +126,13 @@ export default function Inventory() {
       unit.tower.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = filterStatus === "all" || unit.status === filterStatus;
+    const matchesPropertyType = filterPropertyType === "all" || unit.propertyType === filterPropertyType;
 
     const matchesProject = selectedProject === "all" || unit.projectId === selectedProject;
     const matchesTower = selectedTower === "all" || unit.tower === selectedTower;
     const matchesFloor = selectedFloor === "all" || unit.floor.toString() === selectedFloor;
 
-    return matchesSearch && matchesStatus && matchesProject && matchesTower && matchesFloor;
+    return matchesSearch && matchesStatus && matchesPropertyType && matchesProject && matchesTower && matchesFloor;
   }) || [];
 
   const getStatusBadge = (status: string) => {
@@ -163,6 +168,44 @@ export default function Inventory() {
         {config.label}
       </Badge>
     );
+  };
+
+  const getPropertyTypeInfo = (propertyType: string) => {
+    const typeConfig = {
+      flat: { 
+        label: "Flat", 
+        className: "bg-blue-100 text-blue-800",
+        icon: Building2 
+      },
+      bungalow: { 
+        label: "Bungalow", 
+        className: "bg-green-100 text-green-800",
+        icon: Home 
+      },
+      row_house: { 
+        label: "Row House", 
+        className: "bg-purple-100 text-purple-800",
+        icon: Building 
+      },
+      shop: { 
+        label: "Shop", 
+        className: "bg-orange-100 text-orange-800",
+        icon: Store 
+      },
+      office: { 
+        label: "Office", 
+        className: "bg-gray-100 text-gray-800",
+        icon: Briefcase 
+      },
+    };
+
+    const config = typeConfig[propertyType as keyof typeof typeConfig] || typeConfig.flat;
+    const IconComponent = config.icon;
+
+    return {
+      ...config,
+      icon: IconComponent
+    };
   };
 
   const getInventoryStats = () => {
@@ -265,7 +308,7 @@ export default function Inventory() {
       {/* Filters */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <div>
               <Select value={selectedProject} onValueChange={setSelectedProject}>
                 <SelectTrigger>
@@ -310,6 +353,22 @@ export default function Inventory() {
                       Floor {floor}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Select value={filterPropertyType} onValueChange={setFilterPropertyType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Property Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="flat">Flat</SelectItem>
+                  <SelectItem value="bungalow">Bungalow</SelectItem>
+                  <SelectItem value="row_house">Row House</SelectItem>
+                  <SelectItem value="shop">Shop</SelectItem>
+                  <SelectItem value="office">Office</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -377,68 +436,97 @@ export default function Inventory() {
               <p className="text-gray-500">Try adjusting your filters or add new units to get started.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredUnits.map((unit) => (
-                <div key={unit.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{unit.unitNumber}</h3>
-                      <p className="text-sm text-gray-600 flex items-center">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        Tower {unit.tower} • Floor {unit.floor}
-                      </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredUnits.map((unit) => {
+                const propertyTypeInfo = getPropertyTypeInfo(unit.propertyType || 'flat');
+                const PropertyTypeIcon = propertyTypeInfo.icon;
+                
+                return (
+                  <div key={unit.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-gray-300 transition-all duration-200">
+                    {/* Header with status and property type */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start space-x-3">
+                        <div className={`p-2 rounded-lg ${propertyTypeInfo.className.replace('text-', 'bg-').replace('-800', '-50')}`}>
+                          <PropertyTypeIcon className="w-5 h-5 text-gray-700" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-lg text-gray-900">{unit.unitNumber}</h3>
+                          <div className="flex items-center space-x-1 text-sm text-gray-600">
+                            <MapPin className="w-3 h-3" />
+                            <span>Tower {unit.tower} • Floor {unit.floor}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {getStatusBadge(unit.status)}
                     </div>
-                    {getStatusBadge(unit.status)}
-                  </div>
-                  
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Type:</span>
-                      <span className="text-sm font-medium">{unit.unitType}</span>
+                    
+                    {/* Property type badge */}
+                    <div className="mb-4">
+                      <Badge className={`${propertyTypeInfo.className} flex items-center gap-1 w-fit`}>
+                        <PropertyTypeIcon className="w-3 h-3" />
+                        {propertyTypeInfo.label}
+                      </Badge>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Area:</span>
-                      <span className="text-sm font-medium">{unit.area} sq ft</span>
+                    
+                    {/* Details */}
+                    <div className="space-y-3 mb-6">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Area</span>
+                        <span className="text-sm font-semibold text-gray-900">{unit.size || unit.area} sq ft</span>
+                      </div>
+                      {unit.view && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">View</span>
+                          <span className="text-sm font-medium text-gray-900 capitalize">{unit.view}</span>
+                        </div>
+                      )}
+                      {unit.facing && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Facing</span>
+                          <span className="text-sm font-medium text-gray-900 capitalize">{unit.facing}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                        <span className="text-sm text-gray-600">Base Price</span>
+                        <span className="text-lg font-bold text-green-600">
+                          ₹{parseFloat(unit.baseRate || unit.basePrice).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Price:</span>
-                      <span className="text-sm font-bold text-green-600">
-                        ₹{parseFloat(unit.basePrice).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
 
-                  <div className="flex space-x-2">
-                    <Button variant="ghost" size="sm" className="flex-1">
-                      <Eye className="w-3 h-3 mr-1" />
-                      View
-                    </Button>
-                    <Button variant="ghost" size="sm" className="flex-1">
-                      <Edit className="w-3 h-3 mr-1" />
-                      Edit
-                    </Button>
-                    {unit.status === 'available' ? (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'block' })}
-                        className="text-yellow-600 hover:text-yellow-700"
-                      >
-                        <Lock className="w-3 h-3" />
+                    {/* Action buttons */}
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Eye className="w-3 h-3 mr-1" />
+                        View
                       </Button>
-                    ) : unit.status === 'blocked' ? (
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'unblock' })}
-                        className="text-green-600 hover:text-green-700"
-                      >
-                        <Unlock className="w-3 h-3" />
+                      <Button variant="outline" size="sm" className="flex-1">
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
                       </Button>
-                    ) : null}
+                      {unit.status === 'available' ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'block' })}
+                          className="text-yellow-600 hover:text-yellow-700 border-yellow-300 hover:border-yellow-400"
+                        >
+                          <Lock className="w-3 h-3" />
+                        </Button>
+                      ) : unit.status === 'blocked' ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => blockUnitMutation.mutate({ unitId: unit.id, action: 'unblock' })}
+                          className="text-green-600 hover:text-green-700 border-green-300 hover:border-green-400"
+                        >
+                          <Unlock className="w-3 h-3" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
