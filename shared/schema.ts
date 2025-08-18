@@ -30,6 +30,7 @@ export const userRoleEnum = pgEnum('user_role', ['developer_hq', 'project_admin'
 export const leadSourceEnum = pgEnum('lead_source', ['99acres', 'magicbricks', 'website', 'walk_in', 'broker', 'google_ads', 'meta_ads', 'referral']);
 export const leadStatusEnum = pgEnum('lead_status', ['new', 'contacted', 'site_visit', 'negotiation', 'booking', 'sale', 'post_sales', 'lost', 'inactive']);
 export const unitStatusEnum = pgEnum('unit_status', ['available', 'blocked', 'booked', 'sold']);
+export const propertyTypeEnum = pgEnum('property_type', ['flat', 'bungalow', 'row_house', 'shop', 'office']);
 export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'paid', 'overdue', 'partial']);
 export const projectStatusEnum = pgEnum('project_status', ['pre_launch', 'active', 'sold_out', 'completed']);
 export const communicationTypeEnum = pgEnum('communication_type', ['call', 'email', 'whatsapp', 'sms', 'meeting', 'site_visit']);
@@ -85,6 +86,7 @@ export const units = pgTable("units", {
   projectId: varchar("project_id").references(() => projects.id).notNull(),
   unitNumber: varchar("unit_number").notNull(),
   floor: integer("floor").notNull(),
+  propertyType: propertyTypeEnum("property_type").default('flat'),
   size: decimal("size", { precision: 8, scale: 2 }).notNull(),
   baseRate: decimal("base_rate", { precision: 15, scale: 2 }).notNull(),
   plc: decimal("plc", { precision: 15, scale: 2 }).default('0'),
