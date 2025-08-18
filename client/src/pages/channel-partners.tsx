@@ -16,7 +16,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import ChannelPartnerForm from "@/components/forms/channel-partner-form";
 import {
   Table,
   TableBody,
@@ -523,6 +524,20 @@ export default function ChannelPartners() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Channel Partner Dialog */}
+      <Dialog open={showPartnerForm} onOpenChange={setShowPartnerForm}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Channel Partner</DialogTitle>
+          </DialogHeader>
+          <ChannelPartnerForm
+            onSubmit={createPartnerMutation.mutate}
+            isLoading={createPartnerMutation.isPending}
+            onCancel={() => setShowPartnerForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

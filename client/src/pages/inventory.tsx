@@ -15,7 +15,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import InventoryForm from "@/components/forms/inventory-form";
 import { 
   Plus, 
   Search, 
@@ -113,6 +114,40 @@ export default function Inventory() {
       toast({
         title: "Error",
         description: "Failed to update unit status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createUnitMutation = useMutation({
+    mutationFn: async (unitData: any) => {
+      await apiRequest("POST", "/api/units", unitData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/units"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/towers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/floors"] });
+      toast({
+        title: "Success",
+        description: "Unit created successfully",
+      });
+      setShowUnitForm(false);
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to create unit",
         variant: "destructive",
       });
     },
@@ -531,6 +566,24 @@ export default function Inventory() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add Unit Dialog */}
+      <Dialog open={showUnitForm} onOpenChange={setShowUnitForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add New Unit</DialogTitle>
+          </DialogHeader>
+          <InventoryForm
+            projects={projects || []}
+            towers={towers || []}
+            onSubmit={createUnitMutation.mutate}
+            isLoading={createUnitMutation.isPending}
+            onCancel={() => setShowUnitForm(false)}
+            selectedProjectId={selectedProject !== "all" ? selectedProject : undefined}
+            onProjectChange={(projectId) => setSelectedProject(projectId)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

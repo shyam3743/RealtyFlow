@@ -10,6 +10,7 @@ import {
   channelPartnerLeads,
   leadActivities,
   communications,
+  negotiations,
   type User,
   type UpsertUser,
   type Project,
@@ -30,6 +31,8 @@ import {
   type InsertLeadActivity,
   type Communication,
   type InsertCommunication,
+  type Negotiation,
+  type InsertNegotiation,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
@@ -92,6 +95,12 @@ export interface IStorage {
   // Communication operations
   getCommunications(leadId?: string): Promise<Communication[]>;
   createCommunication(communication: InsertCommunication): Promise<Communication>;
+  
+  // Negotiation operations
+  getNegotiations(): Promise<Negotiation[]>;
+  getNegotiation(id: string): Promise<Negotiation | undefined>;
+  createNegotiation(negotiation: InsertNegotiation): Promise<Negotiation>;
+  updateNegotiation(id: string, negotiation: Partial<InsertNegotiation>): Promise<Negotiation>;
   
   // Dashboard analytics
   getDashboardMetrics(): Promise<{
@@ -368,6 +377,30 @@ export class DatabaseStorage implements IStorage {
   async createCommunication(communication: InsertCommunication): Promise<Communication> {
     const [newCommunication] = await db.insert(communications).values(communication).returning();
     return newCommunication;
+  }
+
+  // Negotiation operations
+  async getNegotiations(): Promise<Negotiation[]> {
+    return await db.select().from(negotiations).orderBy(desc(negotiations.createdAt));
+  }
+
+  async getNegotiation(id: string): Promise<Negotiation | undefined> {
+    const [negotiation] = await db.select().from(negotiations).where(eq(negotiations.id, id));
+    return negotiation;
+  }
+
+  async createNegotiation(negotiation: InsertNegotiation): Promise<Negotiation> {
+    const [newNegotiation] = await db.insert(negotiations).values(negotiation).returning();
+    return newNegotiation;
+  }
+
+  async updateNegotiation(id: string, negotiation: Partial<InsertNegotiation>): Promise<Negotiation> {
+    const [updatedNegotiation] = await db
+      .update(negotiations)
+      .set({ ...negotiation, updatedAt: new Date() })
+      .where(eq(negotiations.id, id))
+      .returning();
+    return updatedNegotiation;
   }
 
   // Dashboard analytics

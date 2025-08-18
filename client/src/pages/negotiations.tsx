@@ -15,8 +15,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import NegotiationForm from "@/components/forms/negotiation-form";
 import { 
   Plus, 
   Search, 
@@ -62,6 +63,16 @@ export default function Negotiations() {
 
   const { data: leads } = useQuery<any[]>({
     queryKey: ["/api/leads"],
+    retry: false,
+  });
+
+  const { data: units } = useQuery<any[]>({
+    queryKey: ["/api/units"],
+    retry: false,
+  });
+
+  const { data: projects } = useQuery<any[]>({
+    queryKey: ["/api/projects"],
     retry: false,
   });
 
@@ -415,6 +426,24 @@ export default function Negotiations() {
           )}
         </CardContent>
       </Card>
+
+      {/* Start Negotiation Dialog */}
+      <Dialog open={showNegotiationForm} onOpenChange={setShowNegotiationForm}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Start New Negotiation</DialogTitle>
+          </DialogHeader>
+          <NegotiationForm
+            leads={leads?.filter(lead => lead.status === 'negotiation') || []}
+            units={units || []}
+            projects={projects || []}
+            onSubmit={createNegotiationMutation.mutate}
+            isLoading={createNegotiationMutation.isPending}
+            onCancel={() => setShowNegotiationForm(false)}
+            selectedLeadId={selectedLead?.id}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

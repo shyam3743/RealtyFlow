@@ -229,6 +229,7 @@ export default function InventoryForm({
           />
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="plc"
@@ -247,9 +248,7 @@ export default function InventoryForm({
               </FormItem>
             )}
           />
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="gst"
@@ -268,7 +267,9 @@ export default function InventoryForm({
               </FormItem>
             )}
           />
+        </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="stampDuty"
