@@ -36,8 +36,8 @@ export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const sessionSecret = process.env.SESSION_SECRET || 'development-secret-key';
   
-  // Use memory store for development if no DATABASE_URL or if database connection fails
-  if (process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL) {
+  // Always use memory store for development to avoid database session issues
+  if (process.env.NODE_ENV === 'development') {
     console.warn('⚠️ Using memory store for sessions in development. Sessions will not persist across server restarts.');
     return session({
       secret: sessionSecret,
@@ -101,6 +101,10 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Always set up basic serialization for session management
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
   // Skip OAuth setup in development if we can't connect to replit.com
   if (process.env.NODE_ENV === 'development') {
     console.warn('⚠️ Skipping OAuth setup in development mode');
@@ -133,8 +137,7 @@ export async function setupAuth(app: Express) {
       passport.use(strategy);
     }
 
-    passport.serializeUser((user: Express.User, cb) => cb(null, user));
-    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
 
     app.get("/api/login", (req, res, next) => {
       passport.authenticate(`replitauth:${req.hostname}`, {
