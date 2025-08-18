@@ -37,6 +37,9 @@ async function seedMasterUser() {
     }
   } catch (error) {
     console.error("Error seeding master user:", error);
+    if (process.env.NODE_ENV === 'development') {
+      console.warn("⚠️ Skipping master user creation in development mode due to database error");
+    }
   }
 }
 

@@ -8,15 +8,25 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
+// Make this more development-friendly
+const replitDomains = process.env.REPLIT_DOMAINS || 'localhost:5000';
+
+if (!replitDomains && process.env.NODE_ENV === 'production') {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
+}
+
+if (!replitDomains && process.env.NODE_ENV === 'development') {
+  console.warn('⚠️ REPLIT_DOMAINS not set, using localhost:5000 for development');
 }
 
 const getOidcConfig = memoize(
   async () => {
+    const issuerUrl = process.env.ISSUER_URL ?? "https://replit.com/oidc";
+    const replId = process.env.REPL_ID || 'development-repl-id';
+    
     return await client.discovery(
-      new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+      new URL(issuerUrl),
+      replId
     );
   },
   { maxAge: 3600 * 1000 }
@@ -24,21 +34,40 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const sessionSecret = process.env.SESSION_SECRET || 'development-secret-key';
+  
+  // Use memory store for development if no DATABASE_URL or if database connection fails
+  if (process.env.NODE_ENV === 'development' && !process.env.DATABASE_URL) {
+    console.warn('⚠️ Using memory store for sessions in development. Sessions will not persist across server restarts.');
+    return session({
+      secret: sessionSecret,
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // Allow non-HTTPS in development
+        maxAge: sessionTtl,
+      },
+    });
+  }
+  
+  // Use PostgreSQL store for production
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
+    conString: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/realtyflow',
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
   return session({
-    secret: process.env.SESSION_SECRET!,
+    secret: sessionSecret,
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       maxAge: sessionTtl,
     },
   });
@@ -72,59 +101,72 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  const config = await getOidcConfig();
-
-  const verify: VerifyFunction = async (
-    tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
-    verified: passport.AuthenticateCallback
-  ) => {
-    const user = {};
-    updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
-    verified(null, user);
-  };
-
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
-    const strategy = new Strategy(
-      {
-        name: `replitauth:${domain}`,
-        config,
-        scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
-      },
-      verify,
-    );
-    passport.use(strategy);
+  // Skip OAuth setup in development if we can't connect to replit.com
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('⚠️ Skipping OAuth setup in development mode');
+    return;
   }
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+  try {
+    const config = await getOidcConfig();
 
-  app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
-  });
+    const verify: VerifyFunction = async (
+      tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+      verified: passport.AuthenticateCallback
+    ) => {
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(tokens.claims());
+      verified(null, user);
+    };
 
-  app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
-  });
-
-  app.get("/api/logout", (req, res) => {
-    req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
+    for (const domain of (process.env.REPLIT_DOMAINS || 'localhost:5000').split(",")) {
+      const strategy = new Strategy(
+        {
+          name: `replitauth:${domain}`,
+          config,
+          scope: "openid email profile offline_access",
+          callbackURL: `https://${domain}/api/callback`,
+        },
+        verify,
       );
+      passport.use(strategy);
+    }
+
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+    app.get("/api/login", (req, res, next) => {
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
     });
-  });
+
+    app.get("/api/callback", (req, res, next) => {
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        successReturnToOrRedirect: "/",
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    });
+
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect(
+          client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID || 'development-repl-id',
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          }).href
+        );
+      });
+    });
+  } catch (error) {
+    console.error('Failed to setup OAuth auth:', error);
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    }
+    console.warn('⚠️ Continuing without OAuth in development mode');
+  }
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {

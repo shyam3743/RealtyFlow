@@ -36,6 +36,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, sql, count, sum, gte, lte } from "drizzle-orm";
+import { MockStorage } from "./mockStorage";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -473,4 +474,14 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+// Use mock storage in development to avoid database dependency
+let storage: IStorage;
+
+if (process.env.NODE_ENV === 'development') {
+  console.warn('⚠️ Using mock storage in development mode');
+  storage = new MockStorage();
+} else {
+  storage = new DatabaseStorage();
+}
+
+export { storage };
