@@ -26,7 +26,7 @@ export const sessions = pgTable(
 );
 
 // Enums
-export const userRoleEnum = pgEnum('user_role', ['developer_hq', 'project_admin', 'sales_team']);
+export const userRoleEnum = pgEnum('user_role', ['master', 'developer_hq', 'sales_admin', 'sales_executive']);
 export const leadSourceEnum = pgEnum('lead_source', ['99acres', 'magicbricks', 'website', 'walk_in', 'broker', 'google_ads', 'meta_ads', 'referral']);
 export const leadStatusEnum = pgEnum('lead_status', ['new', 'contacted', 'site_visit', 'negotiation', 'booking', 'sale', 'post_sales', 'lost', 'inactive']);
 export const unitStatusEnum = pgEnum('unit_status', ['available', 'blocked', 'booked', 'sold']);
@@ -39,10 +39,12 @@ export const communicationTypeEnum = pgEnum('communication_type', ['call', 'emai
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  username: varchar("username").unique(),
+  password: varchar("password"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: userRoleEnum("role").default('sales_team'),
+  role: userRoleEnum("role").default('sales_executive'),
   phone: varchar("phone"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -451,3 +453,23 @@ export type Negotiation = typeof negotiations.$inferSelect;
 export type InsertNegotiation = z.infer<typeof insertNegotiationSchema>;
 export type Tower = typeof towers.$inferSelect;
 export type InsertTower = z.infer<typeof insertTowerSchema>;
+
+// Authentication schemas
+export const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+  role: z.enum(["master", "developer_hq", "sales_admin", "sales_executive"]),
+});
+
+export const registerSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Valid email is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phone: z.string().optional(),
+  role: z.enum(["sales_admin", "sales_executive"]),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;

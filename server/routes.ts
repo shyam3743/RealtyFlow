@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth } from "./replitAuth";
 import { 
   insertLeadSchema, 
   insertProjectSchema, 
@@ -11,19 +11,204 @@ import {
   insertChannelPartnerSchema,
   insertLeadActivitySchema,
   insertCommunicationSchema,
-  insertNegotiationSchema
+  insertNegotiationSchema,
+  loginSchema,
+  registerSchema
 } from "@shared/schema";
 import { ZodError } from "zod";
+import bcrypt from "bcryptjs";
+
+// Seed master user
+async function seedMasterUser() {
+  try {
+    const existingMaster = await storage.getUserByUsername("admin");
+    if (!existingMaster) {
+      const hashedPassword = await bcrypt.hash("admin", 10);
+      await storage.createUser({
+        username: "admin",
+        email: "admin@realtyflow.com",
+        password: hashedPassword,
+        firstName: "Master",
+        lastName: "Admin",
+        role: "master" as const,
+        isActive: true
+      });
+      console.log("Master user created: admin/admin");
+    }
+  } catch (error) {
+    console.error("Error seeding master user:", error);
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  // Seed default master user
+  await seedMasterUser();
+
+  // Custom Auth middleware
+  const isCustomAuthenticated = async (req: any, res: any, next: any) => {
+    // Check if it's custom auth session
+    if ((req.session as any)?.isCustomAuth && (req.session as any)?.userId) {
+      const user = await storage.getUser((req.session as any).userId);
+      if (user) {
+        req.user = {
+          claims: {
+            sub: user.id,
+            email: user.email,
+            first_name: user.firstName,
+            last_name: user.lastName,
+          },
+          role: user.role
+        };
+        return next();
+      }
+    }
+    
+    // Check if it's OAuth session
+    if (req.user?.claims?.sub) {
+      return next();
+    }
+    
+    return res.status(401).json({ message: "Unauthorized" });
+  };
+
+  // Custom Auth routes (for username/password login)
+  app.post('/api/auth/login', async (req, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const loginData = loginSchema.parse(req.body);
+      
+      // Find user by username
+      const user = await storage.getUserByUsername(loginData.username);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      // Check if role matches
+      if (user.role !== loginData.role) {
+        return res.status(401).json({ message: "Invalid role selection" });
+      }
+      
+      // Verify password
+      const isValidPassword = await bcrypt.compare(loginData.password, user.password || '');
+      
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      // Set user session (similar to how Replit auth works)
+      (req as any).user = {
+        claims: {
+          sub: user.id,
+          email: user.email,
+          first_name: user.firstName,
+          last_name: user.lastName,
+        }
+      };
+      
+      // Store session
+      (req.session as any).userId = user.id;
+      (req.session as any).isCustomAuth = true;
+      
+      res.json({ 
+        message: "Login successful", 
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role
+        }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data" });
+      }
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+
+  app.post('/api/auth/register', async (req, res) => {
+    try {
+      const registerData = registerSchema.parse(req.body);
+      
+      // Only allow sales_admin and sales_executive registration
+      if (!['sales_admin', 'sales_executive'].includes(registerData.role)) {
+        return res.status(400).json({ message: "Invalid role for registration" });
+      }
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(registerData.username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+      
+      // Check if email already exists
+      const existingEmail = await storage.getUserByEmail(registerData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already exists" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(registerData.password, 10);
+      
+      // Create user
+      const newUser = await storage.createUser({
+        username: registerData.username,
+        email: registerData.email,
+        password: hashedPassword,
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        phone: registerData.phone,
+        role: registerData.role as "sales_admin" | "sales_executive",
+        isActive: true
+      });
+      
+      res.json({ 
+        message: "Registration successful", 
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          role: newUser.role
+        }
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      if (error instanceof ZodError) {
+        return res.status(400).json({ message: "Invalid input data" });
+      }
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  // Updated user route to handle both OAuth and custom auth
+  app.get('/api/auth/user', async (req: any, res) => {
+    try {
+      let userId;
+      
+      // Check if it's custom auth session
+      if ((req.session as any)?.isCustomAuth && (req.session as any)?.userId) {
+        userId = (req.session as any).userId;
+      } 
+      // Check if it's OAuth session
+      else if (req.user?.claims?.sub) {
+        userId = req.user.claims.sub;
+      } else {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
       const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
@@ -31,8 +216,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/auth/logout', (req, res) => {
+    if ((req.session as any)?.isCustomAuth) {
+      req.session.destroy((err) => {
+        if (err) {
+          return res.status(500).json({ message: "Logout failed" });
+        }
+        res.json({ message: "Logout successful" });
+      });
+    } else {
+      // Handle OAuth logout
+      res.redirect('/api/logout');
+    }
+  });
+
+  // Auth routes
   // Dashboard routes
-  app.get('/api/dashboard/metrics', isAuthenticated, async (req, res) => {
+  app.get('/api/dashboard/metrics', isCustomAuthenticated, async (req, res) => {
     try {
       const metrics = await storage.getDashboardMetrics();
       res.json(metrics);
@@ -43,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Project routes
-  app.get('/api/projects', isAuthenticated, async (req, res) => {
+  app.get('/api/projects', isCustomAuthenticated, async (req, res) => {
     try {
       const projects = await storage.getProjects();
       res.json(projects);
@@ -53,7 +253,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/projects/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const project = await storage.getProject(req.params.id);
       if (!project) {
@@ -66,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/projects', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertProjectSchema.parse({
         ...req.body,
@@ -84,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Unit routes - Complete inventory management
-  app.get('/api/units', isAuthenticated, async (req, res) => {
+  app.get('/api/units', isCustomAuthenticated, async (req, res) => {
     try {
       const { projectId } = req.query;
       const units = await storage.getUnits(projectId as string);
@@ -95,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/towers/:projectId', isAuthenticated, async (req, res) => {
+  app.get('/api/towers/:projectId', isCustomAuthenticated, async (req, res) => {
     try {
       const towers = await storage.getTowers(req.params.projectId);
       res.json(towers);
@@ -105,7 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/floors/:tower', isAuthenticated, async (req, res) => {
+  app.get('/api/floors/:tower', isCustomAuthenticated, async (req, res) => {
     try {
       const floors = await storage.getFloors(req.params.tower);
       res.json(floors);
@@ -115,7 +315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/units/:unitId/block', isAuthenticated, async (req, res) => {
+  app.post('/api/units/:unitId/block', isCustomAuthenticated, async (req, res) => {
     try {
       const unit = await storage.blockUnit(req.params.unitId);
       res.json(unit);
@@ -125,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/units/:unitId/unblock', isAuthenticated, async (req, res) => {
+  app.post('/api/units/:unitId/unblock', isCustomAuthenticated, async (req, res) => {
     try {
       const unit = await storage.unblockUnit(req.params.unitId);
       res.json(unit);
@@ -135,7 +335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/units', isAuthenticated, async (req: any, res) => {
+  app.post('/api/units', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertUnitSchema.parse(req.body);
       const unit = await storage.createUnit(validatedData);
@@ -149,7 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/projects/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/projects/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertProjectSchema.partial().parse(req.body);
       const project = await storage.updateProject(req.params.id, validatedData);
@@ -164,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Lead routes
-  app.get('/api/leads', isAuthenticated, async (req, res) => {
+  app.get('/api/leads', isCustomAuthenticated, async (req, res) => {
     try {
       const projectId = req.query.projectId as string;
       const leads = await storage.getLeads(projectId);
@@ -175,7 +375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/leads/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/leads/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const lead = await storage.getLead(req.params.id);
       if (!lead) {
@@ -188,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/leads', isAuthenticated, async (req: any, res) => {
+  app.post('/api/leads', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertLeadSchema.parse({
         ...req.body,
@@ -205,7 +405,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/leads/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/leads/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertLeadSchema.partial().parse(req.body);
       const lead = await storage.updateLead(req.params.id, validatedData);
@@ -219,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/leads/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/leads/:id', isCustomAuthenticated, async (req, res) => {
     try {
       await storage.deleteLead(req.params.id);
       res.json({ message: "Lead deleted successfully" });
@@ -229,7 +429,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/leads/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/leads/:id', isCustomAuthenticated, async (req, res) => {
     try {
       await storage.deleteLead(req.params.id);
       res.json({ message: "Lead deleted successfully" });
@@ -239,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/leads/status/:status', isAuthenticated, async (req, res) => {
+  app.get('/api/leads/status/:status', isCustomAuthenticated, async (req, res) => {
     try {
       const leads = await storage.getLeadsByStatus(req.params.status);
       res.json(leads);
@@ -250,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Lead Activities routes
-  app.get('/api/leads/:leadId/activities', isAuthenticated, async (req, res) => {
+  app.get('/api/leads/:leadId/activities', isCustomAuthenticated, async (req, res) => {
     try {
       const activities = await storage.getLeadActivities(req.params.leadId);
       res.json(activities);
@@ -260,7 +460,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/leads/:leadId/activities', isAuthenticated, async (req: any, res) => {
+  app.post('/api/leads/:leadId/activities', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertLeadActivitySchema.parse({
         ...req.body,
@@ -279,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Unit routes
-  app.get('/api/units', isAuthenticated, async (req, res) => {
+  app.get('/api/units', isCustomAuthenticated, async (req, res) => {
     try {
       const projectId = req.query.projectId as string;
       const units = await storage.getUnits(projectId);
@@ -290,7 +490,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/units/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/units/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const unit = await storage.getUnit(req.params.id);
       if (!unit) {
@@ -303,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/units', isAuthenticated, async (req, res) => {
+  app.post('/api/units', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertUnitSchema.parse(req.body);
       const unit = await storage.createUnit(validatedData);
@@ -317,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/units/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/units/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertUnitSchema.partial().parse(req.body);
       const unit = await storage.updateUnit(req.params.id, validatedData);
@@ -331,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/units/:id', isAuthenticated, async (req, res) => {
+  app.delete('/api/units/:id', isCustomAuthenticated, async (req, res) => {
     try {
       await storage.deleteUnit(req.params.id);
       res.json({ message: "Unit deleted successfully" });
@@ -341,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/projects/:projectId/available-units', isAuthenticated, async (req, res) => {
+  app.get('/api/projects/:projectId/available-units', isCustomAuthenticated, async (req, res) => {
     try {
       const units = await storage.getAvailableUnits(req.params.projectId);
       res.json(units);
@@ -352,7 +552,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Tower routes
-  app.get('/api/projects/:projectId/towers', isAuthenticated, async (req, res) => {
+  app.get('/api/projects/:projectId/towers', isCustomAuthenticated, async (req, res) => {
     try {
       const towers = await storage.getTowers(req.params.projectId);
       res.json(towers);
@@ -362,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/projects/:projectId/towers', isAuthenticated, async (req, res) => {
+  app.post('/api/projects/:projectId/towers', isCustomAuthenticated, async (req, res) => {
     try {
       const tower = await storage.createTower({
         ...req.body,
@@ -376,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Booking routes
-  app.get('/api/bookings', isAuthenticated, async (req, res) => {
+  app.get('/api/bookings', isCustomAuthenticated, async (req, res) => {
     try {
       const bookings = await storage.getBookings();
       res.json(bookings);
@@ -386,7 +586,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/bookings/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/bookings/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const booking = await storage.getBooking(req.params.id);
       if (!booking) {
@@ -399,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/bookings', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertBookingSchema.parse({
         ...req.body,
@@ -420,7 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/bookings/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/bookings/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertBookingSchema.partial().parse(req.body);
       const booking = await storage.updateBooking(req.params.id, validatedData);
@@ -435,7 +635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Payment routes
-  app.get('/api/payments', isAuthenticated, async (req, res) => {
+  app.get('/api/payments', isCustomAuthenticated, async (req, res) => {
     try {
       const bookingId = req.query.bookingId as string;
       const payments = await storage.getPayments(bookingId);
@@ -446,7 +646,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/payments/pending', isAuthenticated, async (req, res) => {
+  app.get('/api/payments/pending', isCustomAuthenticated, async (req, res) => {
     try {
       const payments = await storage.getPendingPayments();
       res.json(payments);
@@ -456,7 +656,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/payments', isAuthenticated, async (req, res) => {
+  app.post('/api/payments', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPaymentSchema.parse(req.body);
       const payment = await storage.createPayment(validatedData);
@@ -470,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/payments/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/payments/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertPaymentSchema.partial().parse(req.body);
       const payment = await storage.updatePayment(req.params.id, validatedData);
@@ -485,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Channel Partner routes
-  app.get('/api/channel-partners', isAuthenticated, async (req, res) => {
+  app.get('/api/channel-partners', isCustomAuthenticated, async (req, res) => {
     try {
       const partners = await storage.getChannelPartners();
       res.json(partners);
@@ -495,7 +695,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/channel-partners/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/channel-partners/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const partner = await storage.getChannelPartner(req.params.id);
       if (!partner) {
@@ -508,7 +708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/channel-partners', isAuthenticated, async (req, res) => {
+  app.post('/api/channel-partners', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertChannelPartnerSchema.parse(req.body);
       const partner = await storage.createChannelPartner(validatedData);
@@ -522,7 +722,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/channel-partners/:id', isAuthenticated, async (req, res) => {
+  app.put('/api/channel-partners/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const validatedData = insertChannelPartnerSchema.partial().parse(req.body);
       const partner = await storage.updateChannelPartner(req.params.id, validatedData);
@@ -537,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Communication routes
-  app.get('/api/communications', isAuthenticated, async (req, res) => {
+  app.get('/api/communications', isCustomAuthenticated, async (req, res) => {
     try {
       const leadId = req.query.leadId as string;
       const communications = await storage.getCommunications(leadId);
@@ -548,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/communications', isAuthenticated, async (req: any, res) => {
+  app.post('/api/communications', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertCommunicationSchema.parse({
         ...req.body,
@@ -566,7 +766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Negotiation routes
-  app.get('/api/negotiations', isAuthenticated, async (req, res) => {
+  app.get('/api/negotiations', isCustomAuthenticated, async (req, res) => {
     try {
       const negotiations = await storage.getNegotiations();
       res.json(negotiations);
@@ -576,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/negotiations/:id', isAuthenticated, async (req, res) => {
+  app.get('/api/negotiations/:id', isCustomAuthenticated, async (req, res) => {
     try {
       const negotiation = await storage.getNegotiation(req.params.id);
       if (!negotiation) {
@@ -589,7 +789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/negotiations', isAuthenticated, async (req: any, res) => {
+  app.post('/api/negotiations', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertNegotiationSchema.parse({
         ...req.body,
@@ -606,7 +806,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/negotiations/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/negotiations/:id', isCustomAuthenticated, async (req: any, res) => {
     try {
       const validatedData = insertNegotiationSchema.partial().parse(req.body);
       const negotiation = await storage.updateNegotiation(req.params.id, validatedData);
