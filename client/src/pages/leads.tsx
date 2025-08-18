@@ -169,6 +169,33 @@ export default function Leads() {
     },
   });
 
+  const updateLeadMutation = useMutation({
+    mutationFn: async ({ id, ...updateData }: { id: string; [key: string]: any }) => {
+      await apiRequest("PUT", `/api/leads/${id}`, updateData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update lead",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteLeadMutation = useMutation({
     mutationFn: async (leadId: string) => {
       await apiRequest("DELETE", `/api/leads/${leadId}`);
@@ -213,6 +240,27 @@ export default function Leads() {
     if (confirm("Are you sure you want to delete this lead?")) {
       deleteLeadMutation.mutate(leadId);
     }
+  };
+
+  const handleScheduleSiteVisit = (lead: any) => {
+    // For now, we'll update the lead status to site_visit and show a toast
+    // In a real implementation, this would open a calendar/scheduling dialog
+    updateLeadMutation.mutate({
+      id: lead.id,
+      status: "site_visit",
+      nextFollowUpAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+    });
+    
+    toast({
+      title: "Site Visit Scheduled",
+      description: `Site visit scheduled for ${lead.name}`,
+    });
+  };
+
+  const handleQuickActions = (lead: any) => {
+    // For now, we'll redirect to the customer journey page with the lead ID
+    // In a real implementation, this might open a quick actions menu
+    window.location.href = `/customer-journey?leadId=${lead.id}`;
   };
 
   const resetForm = () => {
@@ -793,6 +841,24 @@ export default function Leads() {
                         </Button>
                         <Button size="sm" variant="ghost">
                           <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleScheduleSiteVisit(lead)}
+                          className="text-orange-600 hover:text-orange-700"
+                          title="Schedule Site Visit"
+                        >
+                          <Calendar className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleQuickActions(lead)}
+                          className="text-blue-600 hover:text-blue-700"
+                          title="Quick Actions"
+                        >
+                          <Filter className="w-4 h-4" />
                         </Button>
                         <Button 
                           size="sm" 

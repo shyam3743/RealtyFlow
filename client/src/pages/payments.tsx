@@ -15,7 +15,8 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import PaymentCalculator from "@/components/forms/payment-calculator";
 import { 
   Plus, 
   Search, 
@@ -28,11 +29,13 @@ import {
   Bell,
   Calendar,
   TrendingUp,
-  Download
+  Download,
+  Calculator
 } from "lucide-react";
 
 export default function Payments() {
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPlan, setFilterPlan] = useState("all");
@@ -170,6 +173,8 @@ export default function Payments() {
 
   const getPlanBadge = (plan: string) => {
     const planConfig = {
+      full_dp: { label: "Full DP", className: "bg-gray-100 text-gray-800" },
+      subvention: { label: "Subvention", className: "bg-yellow-100 text-yellow-800" },
       clp: { label: "CLP", className: "bg-blue-100 text-blue-800" },
       tlp: { label: "TLP", className: "bg-green-100 text-green-800" },
       custom: { label: "Custom", className: "bg-purple-100 text-purple-800" },
@@ -234,6 +239,10 @@ export default function Payments() {
           <Button onClick={() => setShowPaymentForm(true)} className="bg-primary-500 hover:bg-primary-600">
             <Plus className="w-4 h-4 mr-2" />
             Add Payment
+          </Button>
+          <Button onClick={() => setShowCalculator(true)} variant="outline">
+            <Calculator className="w-4 h-4 mr-2" />
+            Payment Calculator
           </Button>
           <Button variant="outline">
             <FileText className="w-4 h-4 mr-2" />
@@ -380,6 +389,8 @@ export default function Payments() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Plans</SelectItem>
+                  <SelectItem value="full_dp">Full DP</SelectItem>
+                  <SelectItem value="subvention">Subvention</SelectItem>
                   <SelectItem value="clp">CLP</SelectItem>
                   <SelectItem value="tlp">TLP</SelectItem>
                   <SelectItem value="custom">Custom</SelectItem>
@@ -506,6 +517,28 @@ export default function Payments() {
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Calculator Dialog */}
+      <Dialog open={showCalculator} onOpenChange={setShowCalculator}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment Plan Calculator</DialogTitle>
+          </DialogHeader>
+          <PaymentCalculator
+            onClose={() => setShowCalculator(false)}
+            onScheduleGenerated={(schedule) => {
+              console.log('Generated schedule:', schedule);
+              // Here you can handle the generated schedule
+              // For example, create multiple payments or save as a plan
+              setShowCalculator(false);
+              toast({
+                title: "Success",
+                description: "Payment schedule generated successfully",
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
