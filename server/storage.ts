@@ -69,7 +69,7 @@ export interface IStorage {
   getAvailableUnits(projectId: string): Promise<Unit[]>;
   
   // Tower operations
-  getTowers(projectId: string): Promise<string[]>;
+  getTowers(projectId: string): Promise<Tower[]>;
   getFloors(tower: string): Promise<number[]>;
   createTower(tower: InsertTower): Promise<Tower>;
   blockUnit(unitId: string): Promise<Unit>;
@@ -255,10 +255,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Tower operations
-  async getTowers(projectId: string): Promise<string[]> {
-    const result = await db.select({ name: towers.name }).from(towers)
+  async getTowers(projectId: string): Promise<Tower[]> {
+    const result = await db.select().from(towers)
       .where(eq(towers.projectId, projectId));
-    return result.map(r => r.name);
+    return result;
   }
 
   async getFloors(towerName: string): Promise<number[]> {
