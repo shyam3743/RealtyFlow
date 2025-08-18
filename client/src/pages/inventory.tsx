@@ -438,8 +438,8 @@ export default function Inventory() {
                 <SelectContent>
                   <SelectItem value="all">All Towers</SelectItem>
                   {towers?.map((tower) => (
-                    <SelectItem key={tower} value={tower}>
-                      Tower {tower}
+                    <SelectItem key={tower.id} value={tower.name}>
+                      {tower.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
