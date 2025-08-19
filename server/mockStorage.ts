@@ -7,6 +7,7 @@ export class MockStorage implements IStorage {
   private projects: any[] = [];
   private towers: any[] = [];
   private units: any[] = [];
+  private leads: any[] = [];
   private counter = 1;
 
   constructor() {
@@ -97,12 +98,46 @@ export class MockStorage implements IStorage {
     }
     return project; 
   }
-  async getLeads(projectId?: string): Promise<any[]> { return []; }
-  async getLeadsForUser(userId: string, userRole: string, projectId?: string): Promise<any[]> { return []; }
-  async getLead(id: string): Promise<any> { return undefined; }
-  async createLead(lead: any): Promise<any> { return lead; }
-  async updateLead(id: string, lead: any): Promise<any> { return lead; }
-  async deleteLead(id: string): Promise<void> { }
+  async getLeads(projectId?: string): Promise<any[]> { 
+    if (projectId) {
+      return this.leads.filter(l => l.projectId === projectId);
+    }
+    return this.leads; 
+  }
+  async getLeadsForUser(userId: string, userRole: string, projectId?: string): Promise<any[]> { 
+    // For mock storage, just return all leads (role filtering can be tested with real DB)
+    return this.getLeads(projectId);
+  }
+  async getLead(id: string): Promise<any> { 
+    return this.leads.find(l => l.id === id); 
+  }
+  async createLead(lead: any): Promise<any> { 
+    const newLead = { 
+      ...lead, 
+      id: `lead-${Date.now()}`, 
+      createdAt: new Date(), 
+      updatedAt: new Date(),
+      isActive: true,
+      lastContactedAt: null,
+      nextFollowUpAt: null
+    };
+    this.leads.push(newLead);
+    return newLead; 
+  }
+  async updateLead(id: string, lead: any): Promise<any> { 
+    const index = this.leads.findIndex(l => l.id === id);
+    if (index !== -1) {
+      this.leads[index] = { ...this.leads[index], ...lead, updatedAt: new Date() };
+      return this.leads[index];
+    }
+    return lead; 
+  }
+  async deleteLead(id: string): Promise<void> { 
+    const index = this.leads.findIndex(l => l.id === id);
+    if (index !== -1) {
+      this.leads.splice(index, 1);
+    }
+  }
   async getLeadsByStatus(status: string): Promise<any[]> { return []; }
   async getUnits(projectId?: string): Promise<any[]> { 
     if (projectId) {
@@ -185,13 +220,31 @@ export class MockStorage implements IStorage {
   async createNegotiation(negotiation: any): Promise<any> { return negotiation; }
   async updateNegotiation(id: string, negotiation: any): Promise<any> { return negotiation; }
   async getDashboardMetrics(): Promise<any> {
+    const leadsByStatus = this.leads.reduce((acc: any, lead: any) => {
+      const status = lead.status || 'new';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const leadsBySource = this.leads.reduce((acc: any, lead: any) => {
+      const source = lead.source || 'unknown';
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {});
+
     return {
-      totalLeads: 0,
-      conversions: 0,
+      totalLeads: this.leads.length,
+      conversions: this.leads.filter(l => ['booking', 'sale'].includes(l.status)).length,
       revenue: '0',
       unitsSold: 0,
-      leadsByStatus: [],
-      leadsBySource: []
+      leadsByStatus: Object.entries(leadsByStatus).map(([status, count]) => ({
+        status,
+        count
+      })),
+      leadsBySource: Object.entries(leadsBySource).map(([source, count]) => ({
+        source,
+        count
+      }))
     };
   }
 }
