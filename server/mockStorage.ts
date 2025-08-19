@@ -98,6 +98,7 @@ export class MockStorage implements IStorage {
     return project; 
   }
   async getLeads(projectId?: string): Promise<any[]> { return []; }
+  async getLeadsForUser(userId: string, userRole: string, projectId?: string): Promise<any[]> { return []; }
   async getLead(id: string): Promise<any> { return undefined; }
   async createLead(lead: any): Promise<any> { return lead; }
   async updateLead(id: string, lead: any): Promise<any> { return lead; }
