@@ -54,6 +54,7 @@ export interface IStorage {
   
   // Lead operations
   getLeads(projectId?: string): Promise<Lead[]>;
+  getLeadsForUser(userId: string, userRole: string, projectId?: string): Promise<Lead[]>;
   getLead(id: string): Promise<Lead | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead>;
@@ -186,6 +187,55 @@ export class DatabaseStorage implements IStorage {
       return await query.where(eq(leads.projectId, projectId)).orderBy(desc(leads.createdAt));
     }
     return await query.orderBy(desc(leads.createdAt));
+  }
+
+  async getLeadsForUser(userId: string, userRole: string, projectId?: string): Promise<Lead[]> {
+    // Apply role-based filtering
+    if (userRole === 'master' || userRole === 'developer_hq') {
+      // Master and Developer HQ can see all leads
+      return await this.getLeads(projectId);
+    } else if (userRole === 'sales_admin') {
+      // Sales Admin can see leads assigned to themselves or sales executives under them
+      const baseQuery = db
+        .select()
+        .from(leads)
+        .leftJoin(users, eq(leads.assignedTo, users.id));
+
+      if (projectId) {
+        const result = await baseQuery.where(
+          and(
+            eq(leads.projectId, projectId),
+            sql`(${leads.assignedTo} = ${userId} OR ${users.role} = 'sales_executive')`
+          )
+        ).orderBy(desc(leads.createdAt));
+        return result.map((row: any) => row.leads);
+      } else {
+        const result = await baseQuery.where(
+          sql`(${leads.assignedTo} = ${userId} OR ${users.role} = 'sales_executive')`
+        ).orderBy(desc(leads.createdAt));
+        return result.map((row: any) => row.leads);
+      }
+    } else if (userRole === 'sales_executive') {
+      // Sales Executive can only see their own leads
+      const query = db
+        .select()
+        .from(leads);
+
+      if (projectId) {
+        return await query.where(
+          and(
+            eq(leads.projectId, projectId),
+            eq(leads.assignedTo, userId)
+          )
+        ).orderBy(desc(leads.createdAt));
+      } else {
+        return await query.where(
+          eq(leads.assignedTo, userId)
+        ).orderBy(desc(leads.createdAt));
+      }
+    }
+
+    return [];
   }
 
   async getLead(id: string): Promise<Lead | undefined> {

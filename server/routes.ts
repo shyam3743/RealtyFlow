@@ -77,6 +77,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.status(401).json({ message: "Unauthorized" });
   };
 
+  // Role-based access control helper
+  const getRoleHierarchy = (role: string): string[] => {
+    switch (role) {
+      case 'master':
+        return ['master', 'developer_hq', 'sales_admin', 'sales_executive'];
+      case 'developer_hq':
+        return ['developer_hq', 'sales_admin', 'sales_executive'];
+      case 'sales_admin':
+        return ['sales_admin', 'sales_executive'];
+      case 'sales_executive':
+        return ['sales_executive'];
+      default:
+        return [];
+    }
+  };
+
   // Custom Auth routes (for username/password login)
   app.post('/api/auth/login', async (req, res) => {
     try {
@@ -367,10 +383,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Lead routes
-  app.get('/api/leads', isCustomAuthenticated, async (req, res) => {
+  app.get('/api/leads', isCustomAuthenticated, async (req: any, res) => {
     try {
       const projectId = req.query.projectId as string;
-      const leads = await storage.getLeads(projectId);
+      const userId = req.user.claims.sub;
+      const userRole = req.user.role;
+      
+      // Use role-based filtering for leads
+      const leads = await storage.getLeadsForUser(userId, userRole, projectId);
       res.json(leads);
     } catch (error) {
       console.error("Error fetching leads:", error);

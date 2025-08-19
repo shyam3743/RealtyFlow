@@ -13,7 +13,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   profileImageUrl?: string;
-  role: 'developer_hq' | 'project_admin' | 'sales_team';
+  role: 'master' | 'developer_hq' | 'sales_admin' | 'sales_executive';
   phone?: string;
   isActive: boolean;
   createdAt: Date;
